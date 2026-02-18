@@ -1,5 +1,6 @@
 {
   "name": "compass-pricing-tool",
+  "homepage": "https://samwarb.github.io/ai-costings",
   "version": "1.0.0",
   "private": true,
   "dependencies": {
