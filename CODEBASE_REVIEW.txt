@@ -1,0 +1,613 @@
+================================================================================
+  CODEBASE & PRODUCT REVIEW — ai-costings (Compass UK&I Digital Quote Generator)
+================================================================================
+  Date:      2026-02-19
+  Reviewer:  Claude (AI Code Analyst)
+  Codebase:  https://github.com/samwarb/ai-costings
+  Live URL:  https://samwarb.github.io/ai-costings
+  Scope:     Full review of src/App.jsx (617 lines), package.json, public/index.html
+             and the live deployed product.
+
+--------------------------------------------------------------------------------
+  EXECUTIVE SUMMARY
+--------------------------------------------------------------------------------
+
+The ai-costings tool is a focused, well-executed internal React application that
+generates branded AI self-checkout supplier quotes and PDF documents for Compass
+UK&I Digital. For its stated purpose it works correctly and presents a polished,
+professional interface. The deliberate single-file architecture is appropriate for
+the current scope and the PDF output is high-quality and on-brand.
+
+However, several issues warrant attention before the tool grows further. The most
+pressing concerns are: (1) the Create React App toolchain is deprecated and will
+accumulate unpatched vulnerabilities over time; (2) there is no access control on
+what is an internal pricing tool publicly accessible on the internet; (3) coding
+style prioritises extreme density over readability, creating maintenance risk;
+and (4) pricing constants are scattered as raw magic numbers through business
+logic with no mechanism to update them without a full code deploy.
+
+The product itself is UX-positive but lacks mobile responsiveness, has no
+feedback loop after PDF generation, and conflates the "site contact" and
+"prepared by" fields in PDF output. These are small but addressable issues.
+
+Overall maturity: EARLY STAGE / INTERNAL TOOL — functional and fit for current
+purpose, but carrying meaningful technical debt that should be resolved before
+scope is expanded significantly.
+
+--------------------------------------------------------------------------------
+
+  SECTION 1 — CODE QUALITY
+  Severity: MEDIUM
+
+--------------------------------------------------------------------------------
+
+Summary:
+  The code is functional and the architectural choice of a single file is
+  defensible for this scope. However, the coding style leans heavily toward
+  extreme compression: variable names are single letters or two-character
+  abbreviations, the CSS block is a single minified-style string, JSX lines
+  routinely exceed 200 characters, and the entire reset() function is one line
+  ~180 characters long. This style makes the code fast to write but slow to
+  read, debug, and modify — particularly under time pressure or when handed to
+  a new developer. There is also a light duplication of pricing data in the
+  JSX (unit price hints on the Quantities step mirror calcQuote() constants
+  and could silently diverge).
+
+Specific findings and suggestions:
+
+  1. Rename single-letter and highly abbreviated variables throughout App.jsx.
+     Examples to address:
+       - `B`  → `lineItems`          (calcQuote accumulator array)
+       - `hw` → `hardwareTotal`      (running hardware sum)
+       - `ins`→ `installTotal`
+       - `ann`→ `annualTotal`
+       - `cap`→ `capitalTotal`
+       - `d`  → `displayValue`       (AnimatedNumber state)
+       - `p`  → `prevValue`          (AnimatedNumber ref)
+       - `f`  → `animateFrame`       (rAF callback)
+       - `si` → `stepIndex`
+       - `sc` → `supplierColor`
+       - `sr/sg/sb` → `[red,green,blue]`
+     This alone would materially improve maintainability with zero runtime cost.
+
+  2. Extract the hardcoded per-supplier price constants to named constants at
+     the top of calcQuote() or as a separate PRICING object, rather than
+     embedding raw numbers (3373, 4649.50, 1072.5, etc.) directly in add()
+     calls. Unnamed magic numbers in financial calculations are a correctness
+     risk: there is nothing to indicate which number maps to which line item
+     without reading the surrounding code carefully.
+     Example structure:
+       const VISION_PRICES = {
+         scanner: 3373,
+         printer: 190,
+         worldpayMid: 50,
+         weighPay: 750,
+         installFirst: 1750,
+         installAdditional: 1072.5,
+         softwareAnnual: 4649.5,
+         eftCloud: 1583,
+         worldpayPedAnnual: 116.52,
+       };
+
+  3. Break the reset() function across multiple lines. It currently chains
+     ~12 state setters on one line (~180 chars) which is impossible to diff
+     in a PR or scan for correctness. Vertical expansion costs nothing.
+
+  4. The `css` constant (lines 393–468) is defined inside the App component
+     body. This means a new string is allocated and the entire <style> block
+     is re-evaluated by the browser on every state change / re-render. Move
+     the css constant outside the App function (it does not reference any
+     component state or props — the only dynamic value is `--sc` which is
+     applied via inline style, not the CSS string itself).
+
+  5. The Quantities step JSX (line 529) contains hardcoded price-per-unit
+     display hints: `"£"+(supplier==="VISION_CHECKOUT"?"750":supplier===
+     "AUTOCANTEEN"?"660":"695")`. These duplicate constants from calcQuote()
+     and will silently become wrong when prices change. Derive them from a
+     shared PRICING constant or from calcQuote output.
+
+  6. The AnimatedNumber component (lines 356–364) packs import, state, ref,
+     effect, and return all into 9 dense lines with no comments. It implements
+     a custom easing animation loop that deserves at minimum a short comment
+     explaining the easing formula (1 - (1-r)^3 cubic ease-out).
+
+  7. CSS class names are highly abbreviated and context-dependent:
+     `.bk-sec`, `.bk-row`, `.bk-title`, `.t-div`, `.wm`, `.fg`, `.fgrp`,
+     `.btn-p`, `.btn-g`. With no CSS file and no BEM or naming convention,
+     the meaning of any given class is only obvious to the original author
+     within a short window. More descriptive names (e.g. `.breakdown-section`,
+     `.totals-divider`, `.form-grid`, `.watermark`) would help significantly.
+
+--------------------------------------------------------------------------------
+
+  SECTION 2 — PERFORMANCE
+  Severity: LOW
+
+--------------------------------------------------------------------------------
+
+Summary:
+  For a tool with a single user at a time generating one quote, performance is
+  not a critical concern. However, there are several patterns that are
+  technically inefficient and which would become meaningful issues if the
+  component tree grew, or if AnimatedNumber were used more frequently.
+
+Specific findings and suggestions:
+
+  1. The `css` string is allocated inside the App component body (see also
+     Code Quality item 4). Every state change (e.g. incrementing a scanner
+     count) triggers a re-render which re-creates the string and causes the
+     browser to re-parse the <style> block. This is the most impactful
+     performance issue in the codebase. Moving `css` outside the component
+     eliminates this entirely.
+
+  2. Google Fonts are loaded via @import url() inside the injected <style>
+     block (line 394). This is a render-blocking CSS import that fires on
+     every re-render. Fonts should be loaded exclusively via <link> tags in
+     public/index.html. The @import inside the inline style should be removed.
+
+  3. AnimatedNumber's useEffect starts a requestAnimationFrame loop but never
+     returns a cleanup function. If the value prop changes rapidly (e.g. the
+     user rapidly increments/decrements a quantity on the summary page) multiple
+     overlapping animation loops will run concurrently, all calling setD()
+     against the same state. Add a cleanup: return () => cancelAnimationFrame
+     (rafId) from the useEffect to prevent this.
+
+  4. `result = step === "summary" ? calcQuote(...) : null` (line 389) is
+     correct in gating the calculation to the summary step, but as written
+     calcQuote() re-runs on every render while on the summary step (e.g.
+     during the PDF download button hover animation). Wrap in useMemo with
+     the input variables as dependencies to prevent unnecessary recalculation.
+
+  5. The three base64 logo strings (lines 4–7) make the App.jsx source file
+     extremely large (estimated ~100–200 KB of base64 per logo). While this
+     is fine for a build artifact, it makes the source file slow to open and
+     diff. Consider storing logos in public/ as PNG files and importing them
+     normally — Create React App handles this correctly and the result is
+     identical at runtime but far more manageable in source control.
+
+  6. AnimatedNumber is not wrapped in React.memo. When the parent App re-renders
+     (e.g. due to hover state on a button), AnimatedNumber re-renders
+     unnecessarily and its useEffect may re-fire if referential equality is
+     not maintained on the value prop.
+
+--------------------------------------------------------------------------------
+
+  SECTION 3 — SECURITY
+  Severity: MEDIUM
+
+--------------------------------------------------------------------------------
+
+Summary:
+  The application has a small attack surface because it is entirely client-side
+  with no backend, no authentication tokens, no database, and no API calls.
+  User inputs are only used for display (in PDFs and the UI) and are never
+  executed as code. There are no exposed credentials. However, two issues
+  deserve attention: the tool is publicly accessible on the internet despite
+  being an internal pricing tool, and the Create React App build chain (which
+  is now unmaintained) will accumulate unpatched dependency vulnerabilities
+  over time.
+
+Specific findings and suggestions:
+
+  1. The tool is deployed publicly at https://samwarb.github.io/ai-costings
+     with no authentication, login, or IP restriction. It exposes current
+     Compass pricing for three AI checkout suppliers (capital and annual costs
+     per unit). This is a commercial pricing document for an internal sales
+     process — competitors who discover the URL could access a complete
+     breakdown of Compass's supplier rates. Mitigations to consider:
+       a) Add HTTP Basic Auth via a Workers/Functions layer if hosting allows.
+       b) Move the tool to an internal hosted URL (Azure Static Web Apps with
+          AAD authentication, or similar).
+       c) At minimum, add <meta name="robots" content="noindex, nofollow">
+          to public/index.html to prevent search engine indexing.
+
+  2. `react-scripts` 5.0.1 / Create React App is effectively unmaintained
+     (last meaningful release was 2022). Running `npm audit` will likely
+     surface a growing list of dependency vulnerabilities in the build chain.
+     These don't affect the production bundle directly (CRA vulns are mostly
+     in dev tooling) but they are a compliance risk and will prevent `npm
+     install` from completing cleanly in future CI environments. Consider
+     migrating the build toolchain to Vite, which is actively maintained and
+     a near-drop-in replacement for CRA.
+
+  3. PDF filename sanitization at line 219/352:
+       (siteInfo.siteName||"Quote").replace(/[^a-zA-Z0-9]/g,"_")
+     This is correctly safe — it strips all non-alphanumeric characters.
+     No action needed, noted here as a positive finding.
+
+  4. Google Fonts are loaded from an external CDN (fonts.googleapis.com).
+     For GDPR compliance, loading Google Fonts from an external URL sends
+     the end-user's IP address to Google's servers. Since this is an internal
+     tool this is low risk, but for full compliance either self-host the
+     fonts in public/ or use a system font stack.
+
+  5. There is no Content Security Policy configured. GitHub Pages does not
+     allow custom HTTP headers, so this is a platform limitation rather than
+     a code deficiency, but it is worth noting if the tool moves to a
+     platform that supports CSP headers.
+
+--------------------------------------------------------------------------------
+
+  SECTION 4 — SCALABILITY
+  Severity: MEDIUM
+
+--------------------------------------------------------------------------------
+
+Summary:
+  The single-file architecture is appropriate for the current scope (3 suppliers,
+  6 wizard steps, ~617 lines). However, it is already showing signs of strain,
+  and adding any significant new feature — a 4th supplier, a new pricing
+  variable, a quote history view, a comparison mode — would require changes
+  scattered across multiple tightly-coupled sections of App.jsx with no clear
+  seams. The pricing model is also tightly coupled to the code, meaning any
+  price change requires a developer to edit source code and trigger a full
+  deployment.
+
+Specific findings and suggestions:
+
+  1. Hardcoded pricing with no external data source is the most significant
+     scalability constraint. Every price update (which will happen when
+     supplier contracts are renegotiated) requires: editing calcQuote() in
+     source code, running a build, and deploying to GitHub Pages. This ties
+     commercial pricing operations to the engineering pipeline. Consider
+     extracting pricing to a JSON config (even a static file) that can be
+     updated without touching application logic. This also enables auditing
+     — there is currently no record of what prices were in force at any
+     given time.
+
+  2. Adding a 4th supplier currently requires changes in at least five
+     separate locations: the SUPPLIERS constant, getSteps() if a new step
+     type is needed, calcQuote() with a new if block, the Quantities step
+     JSX (hardcoded price hints), and potentially the PDF builders. There
+     is no single "supplier definition" object that owns all of these.
+     A supplier registry pattern (one object per supplier that owns its
+     name, color, logo, prices, and step config) would reduce this to one
+     place.
+
+  3. The CSS block (75+ rules, ~80 lines) inside the component will become
+     unmanageable as new steps or UI elements are added. If the app grows
+     materially, migrate to CSS Modules or a lightweight utility approach.
+
+  4. There is no URL routing. Every navigation action is internal state only;
+     the browser URL never changes. This means:
+       - Users cannot bookmark or share a specific step or supplier.
+       - The browser back button does not work as expected.
+       - If the page is refreshed mid-wizard, the user is returned to step 1.
+     For an internal tool with a simple linear flow this is acceptable, but
+     it would be an immediate problem if the tool were embedded in a wider
+     portal.
+
+  5. There is no upper bound on quantity inputs (scanners, weighPays, smeDays).
+     Setting scanners to a very large number (e.g. 50) would produce unusual
+     but technically correct calculations, and may cause PDF layout overflow
+     on the Summary PDF (which has no page-overflow protection).
+
+--------------------------------------------------------------------------------
+
+  SECTION 5 — BUGS & ERROR HANDLING
+  Severity: MEDIUM
+
+--------------------------------------------------------------------------------
+
+Summary:
+  For the normal happy path the application behaves correctly. However, several
+  edge cases are unhandled: the AnimatedNumber component leaks animation frames
+  on unmount, the Summary PDF has no pagination guard and will silently overflow
+  the page with large quantities, PDF generation errors are completely silent,
+  and the "Prepared by" field in PDFs reflects the wrong person. The supplier
+  state change flow also leaves stale t2eExisting values in memory.
+
+Specific findings and suggestions:
+
+  1. AnimatedNumber (lines 358–362) starts a requestAnimationFrame loop
+     in useEffect but returns no cleanup function. If the component unmounts
+     before the animation completes (e.g. user navigates back from summary),
+     the loop continues calling setD() on an unmounted component. In React
+     18 this is a no-op rather than an error, but it wastes CPU and can cause
+     stale closure bugs if value changes rapidly. Fix: capture the rAF ID
+     and return a cleanup function:
+       let rafId;
+       const f = (now) => { ...; rafId = requestAnimationFrame(f); };
+       rafId = requestAnimationFrame(f);
+       return () => cancelAnimationFrame(rafId);
+
+  2. The Summary PDF (makeSummaryPDF) has no overflow / pagination logic.
+     Content is drawn at increasing y coordinates with no check for
+     exceeding the A4 height (297mm). With a large number of annual line
+     items (e.g. Deligo with many scanners) the content will be drawn
+     beyond the page boundary and silently clipped. The Breakdown PDF has
+     an overflow check (`if (y > H-42) { doc.addPage(); y = 15; }`) but
+     does not redraw the column headers or section styling on the new page,
+     leaving continuation pages unstyled.
+
+  3. There is no error handling around PDF generation. If jsPDF throws for
+     any reason (e.g. a corrupt base64 string, an out-of-memory condition),
+     the button click silently fails with no feedback to the user. Wrap
+     makeSummaryPDF() and makeBreakdownPDF() calls in try/catch blocks and
+     display a user-visible error message.
+
+  4. When a user selects Deligo (triggering the t2e step), sets T2E status,
+     then navigates back and switches to a different supplier, the
+     t2eExisting state variable retains its previously set value (true or
+     false) until the wizard is fully reset. This does not cause incorrect
+     calculations because non-Deligo suppliers do not use t2eExisting in
+     calcQuote(), but it is invisible dirty state. The t2e step UI could
+     be re-rendered unexpectedly if supplier switching logic changes. Fix:
+     reset t2eExisting to null in the supplier selection handler when a
+     non-Deligo supplier is chosen.
+
+  5. The "Prepared by" cell in both PDFs (Summary: line 135, Breakdown:
+     implied via meta row) is populated with `siteInfo.contactName`. This
+     field is labelled "Contact Name" in the UI and intended to capture the
+     client-side contact, not the Compass employee generating the quote.
+     A quote document that lists a client contact as "Prepared by" is
+     potentially confusing or unprofessional. Add a separate "Prepared by"
+     or "Account Manager" field to the site info step.
+
+  6. The go-live date field (type="date") has no minimum date constraint.
+     A user can select a date in the past, which would produce a PDF with a
+     historic target go-live date. Add a `min` attribute set to today's
+     date:  min={new Date().toISOString().split("T")[0]}
+
+  7. In calcQuote(), if supplier is somehow null or an unrecognised string,
+     none of the if blocks execute and the function returns a quote with all
+     zeros plus contingency of 0. No error is thrown and no indication is
+     given to the caller. Given the function is only called when step ===
+     "summary" and a supplier is always set at that point, this is unlikely
+     to surface in practice, but a guard at the top of calcQuote would make
+     the failure explicit rather than silent.
+
+  8. The fmt() and fmtN() formatting utilities coerce their argument to a
+     number with (+n). If n is undefined or NaN (e.g. from a future state
+     change that misses an initialisation), the output will be "NaN" rendered
+     directly into the UI or PDF with no guard. Assertions or a fallback
+     (|| 0) would prevent this.
+
+--------------------------------------------------------------------------------
+
+  SECTION 6 — DOCUMENTATION
+  Severity: LOW
+
+--------------------------------------------------------------------------------
+
+Summary:
+  Documentation has improved significantly with the addition of CLAUDE.md.
+  The file is comprehensive and accurate. However, the source code itself
+  has almost no inline documentation — the business logic in calcQuote(),
+  the animation maths in AnimatedNumber, and the PDF coordinate layout are
+  all undocumented. For a file that is intentionally monolithic and expected
+  to be the sole maintenance surface, inline comments are more valuable than
+  in a conventionally split codebase.
+
+Specific findings and suggestions:
+
+  1. calcQuote() contains all financial logic but has no comments explaining
+     the business rules. At a minimum, each supplier block and the universal
+     costs section should have a comment. The implementation fee formula
+     (£1,250 + smeDays × £300) and the 2.5% contingency rate should be
+     clearly labelled as the constants they are, not derived by reading the
+     arithmetic.
+
+  2. AnimatedNumber implements a cubic ease-out animation using the formula
+     `ease = 1 - (1 - r)^3`. This is non-obvious to anyone unfamiliar with
+     easing functions. A one-line comment would make this immediately
+     understandable without needing to derive the formula from the code.
+
+  3. The Deligo-specific t2eExisting conditional logic (line 64:
+     `if (!t2eExisting) ann += add("Annual","Control Desk Fee",625,1)`)
+     is the only supplier-specific conditional cost in the entire pricing
+     engine and warrants a comment explaining the business rule.
+
+  4. The PDF builder functions use implicit coordinate arithmetic throughout
+     (e.g. `y += 46`, `y += 11`, `y += 8`). These are correct but opaque —
+     it is impossible to know what visual element a given y offset corresponds
+     to without running the code. Section-level comments (e.g.
+     "// Info grid — 40mm tall, starts at y=44") would help significantly
+     when modifying PDF layout.
+
+  5. The CSS class names should be documented. A short comment block above
+     the css string listing the major sections (layout, header, wizard steps,
+     form, summary, PDF panel) would make it much easier to navigate.
+
+  6. CLAUDE.md is thorough and accurate — no changes needed beyond keeping
+     it in sync when pricing is updated.
+
+--------------------------------------------------------------------------------
+
+  SECTION 7 — PRODUCT & UX
+  Severity: MEDIUM
+
+--------------------------------------------------------------------------------
+
+Summary:
+  The product is visually polished and the wizard flow is clear and well-paced.
+  Supplier brand theming throughout the UI is a strong touch. The PDF output
+  is professional and would stand up to client-facing review. The primary UX
+  gaps are: no feedback after PDF generation, a broken browser back-button
+  experience, no mobile layout, and a "Prepared by" field that identifies the
+  wrong person.
+
+Specific findings and suggestions:
+
+  1. There is no feedback after a PDF is downloaded. The download button
+     triggers the file save dialog but returns immediately with no visual
+     confirmation ("✓ Downloaded" state, brief toast, or button label change).
+     Users may click the button multiple times believing the first click
+     did nothing, generating duplicate files.
+
+  2. The browser back button does not work. Because navigation is managed
+     via React state with no URL changes, pressing the browser's native back
+     button leaves the wizard entirely rather than going to the previous step.
+     This is a common frustration for users who instinctively use browser
+     navigation. Adding react-router (or even manual history.pushState calls)
+     would resolve this.
+
+  3. The layout is not mobile-responsive. The supplier selection grid uses
+     `grid-template-columns: repeat(3, 1fr)` regardless of viewport width.
+     On a phone or small tablet, the three supplier cards will be very narrow
+     and the logos may be unreadable. The SME day and quantities rows are
+     fine on mobile, but the form grid (`grid-template-columns: 1fr 1fr`)
+     on the site info step will also be cramped. A simple media query
+     switching both grids to single-column below 520px would fix this.
+
+  4. The cost-per-SME-day (£300/day) is not surfaced on the SME days step.
+     Users incrementing the day count have no way to know the marginal cost
+     of each additional day without proceeding to the summary. Showing
+     "£300 / day" as a sub-label (similar to the unit price hints on the
+     quantities step) would help users make an informed decision.
+
+  5. The progress bar step count reflects the Deligo extra step correctly
+     (6 steps vs 5), but the step labels ("Step 2 of 5", etc.) give no
+     indication of what step name is coming next. A label showing the
+     current step name (e.g. "Step 2 of 5 — Quantities") would improve
+     orientation.
+
+  6. On the summary step, the only navigation options are "← Adjust" (goes
+     to siteinfo, one step back) and "Start Over" (resets everything). There
+     is no way to jump directly to the quantities or SME step from the
+     summary without navigating step by step. For a quote tool where users
+     frequently want to compare "what if I add a scanner", this friction
+     matters.
+
+  7. The "Prepared by" label in the generated PDF (Summary, right-hand info
+     grid) is populated with `contactName`, which the UI labels as "Contact
+     Name" — implying the client contact. A Compass employee preparing a
+     quote for a client contact is a different person from the contact
+     themselves. This creates an awkward PDF where the client contact appears
+     to have prepared their own quote. Add an "Account Manager / Prepared by"
+     field distinct from "Contact Name".
+
+  8. The fixed-position watermark logo (`.wm`: `position:fixed; bottom:1.5rem;
+     right:1.5rem`) may overlap scrollable content on screens where the
+     wizard card is tall (e.g. long summary or site info step on a small
+     monitor). Consider `position:absolute` relative to the page container
+     or reducing the z-index so it sits definitively behind all interactive
+     elements.
+
+  9. Emoji are used in the PDF download button labels (📄 📋) which is a
+     minor inconsistency with the otherwise clean, typographically precise
+     design language. Plain SVG icons would be more consistent with the rest
+     of the UI.
+
+  10. The live site is not indexed-blocked. An internal pricing tool deployed
+      to a public GitHub Pages URL with no robots directive may appear in
+      search results, exposing commercial pricing information. Add:
+        <meta name="robots" content="noindex, nofollow">
+      to public/index.html.
+
+--------------------------------------------------------------------------------
+
+  SECTION 8 — TECHNICAL DEBT
+  Severity: HIGH
+
+--------------------------------------------------------------------------------
+
+Summary:
+  The most significant piece of technical debt is the Create React App
+  toolchain, which is no longer maintained and will become an increasing
+  liability. Beyond that, hardcoded pricing, the growing single-file
+  architecture, and lack of quote persistence represent debt that will
+  compound as the tool is used more widely and extended.
+
+Specific findings and suggestions:
+
+  1. [HIGH] Create React App (react-scripts 5.0.1) is deprecated.
+     The project was archived in 2023 and receives no further updates.
+     Running `npm audit` against the project's dependencies is likely to
+     return dozens of vulnerabilities in the dev dependency tree. This
+     will worsen over time. The recommended migration path is Vite:
+       npm create vite@latest . -- --template react
+     Vite is a near-drop-in replacement for CRA, is actively maintained,
+     builds ~10x faster, and produces smaller bundles. This migration
+     should be prioritised before the project grows further.
+
+  2. [HIGH] Hardcoded pricing constants embedded in business logic.
+     There is no audit trail for price changes — when a supplier renegotiates
+     rates, the old values are simply overwritten in calcQuote() with no
+     record of what they were or when they changed. A generated quote cannot
+     be reproduced after a price update. Extract pricing to a versioned
+     JSON config file (even committed to the repo) so that the history of
+     price changes is preserved in git history and prices can be updated
+     without touching application logic.
+
+  3. [MEDIUM] Single-file architecture approaching its natural limit.
+     At 617 lines (excluding the multi-kilobyte base64 strings on lines 4–7,
+     which inflate the actual file size significantly), the file is already
+     difficult to navigate. Recommended extraction points when next refactoring:
+       - calcQuote()        → src/pricing.js
+       - makeSummaryPDF()   → src/pdfSummary.js
+       - makeBreakdownPDF() → src/pdfBreakdown.js
+       - CSS string         → src/App.module.css (or src/styles.js)
+       - SUPPLIERS / PRICING constants → src/constants.js
+     The React component (App, AnimatedNumber) would remain in App.jsx, now
+     focused solely on UI logic.
+
+  4. [MEDIUM] Base64 logos embedded in source code.
+     Lines 4–7 of App.jsx contain base64 strings for four logos. Each logo
+     is likely 30–150 KB of base64 text, making the raw source file very
+     large and slow to open, diff, or code-review. They are also opaque —
+     it is impossible to visually verify a base64 string is correct.
+     Store logos as PNG files in public/images/ and reference them with
+     standard img src paths. CRA (and Vite) handle this correctly.
+
+  5. [MEDIUM] No quote persistence or history.
+     Once a user navigates away or refreshes, the quote is lost. For a tool
+     used in sales conversations, the ability to recall and re-download a
+     previously generated quote would be valuable. A simple approach would
+     be serialising quote state to localStorage on the summary step, allowing
+     a "load last quote" option on the landing page. A more robust approach
+     would be a lightweight backend (Cloudflare Worker + KV or similar).
+
+  6. [LOW] Google Fonts loaded twice.
+     The @import url() in the css string (line 394) requests Google Fonts.
+     If public/index.html also includes <link rel="preconnect"> for
+     fonts.googleapis.com (which it likely does per the project setup), the
+     browser will establish the connection twice: once from the preconnect
+     hint and again from the CSS @import when the <style> tag is injected.
+     Remove the @import from the css string and load fonts exclusively via
+     <link> tags in index.html.
+
+  7. [LOW] No CI/CD pipeline.
+     The deployment process is a manual `npm run deploy` run from a local
+     machine. There is no automated build, lint check, or test gate on push.
+     A minimal GitHub Actions workflow that runs `npm run build` on every
+     push to master would catch build/lint errors before they reach
+     production.
+
+  8. [LOW] package.json version is 1.0.0 and has not been incremented.
+     While version bumping is low-priority for an internal tool, it means
+     there is no way to identify which version is deployed in production
+     short of checking git history. Consider adopting a simple versioning
+     discipline (even date-based: 2026.02) to make deployed-version
+     identification easier.
+
+--------------------------------------------------------------------------------
+
+  APPENDIX — SEVERITY SUMMARY TABLE
+--------------------------------------------------------------------------------
+
+  Area                   Severity    Top Priority Action
+  ---------------------  ----------  -----------------------------------------
+  Code Quality           MEDIUM      Rename single-letter variables; extract
+                                     pricing constants to named objects
+  Performance            LOW         Move css constant outside component;
+                                     add rAF cleanup to AnimatedNumber
+  Security               MEDIUM      Add robots noindex; evaluate access
+                                     control for internal tool
+  Scalability            MEDIUM      Extract pricing to config; implement
+                                     supplier registry pattern
+  Bugs & Error Handling  MEDIUM      Add rAF cleanup; add PDF overflow guard;
+                                     add try/catch around PDF generation
+  Documentation          LOW         Add inline comments to calcQuote() and
+                                     AnimatedNumber; document CSS sections
+  Product & UX           MEDIUM      Add PDF download feedback; fix mobile
+                                     layout; fix "Prepared by" field
+  Technical Debt         HIGH        Migrate from Create React App to Vite;
+                                     extract pricing constants to config file
+
+--------------------------------------------------------------------------------
+
+  END OF REVIEW
+  Generated: 2026-02-19 | ai-costings v1.0.0 | Compass UK&I Digital
+
+================================================================================
