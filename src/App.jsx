@@ -23,9 +23,9 @@ const SUPPLIERS = {
 //   {{client_name}}, {{outlet_name}}, {{date_initial_request}}, {{go_live_date}},
 //   {{unit_number}}, {{sector}}, {{sector_contact}}, {{status}},
 //   {{ai_tray_autocanteen}}, {{ai_tray_vision_checkout}}, {{deligo_ai_scanners}}
-const EMAILJS_SERVICE_ID  = "YOUR_SERVICE_ID";   // e.g. "service_abc123"
-const EMAILJS_TEMPLATE_ID = "YOUR_TEMPLATE_ID";  // e.g. "template_xyz789"
-const EMAILJS_PUBLIC_KEY  = "YOUR_PUBLIC_KEY";   // e.g. "AbCdEfGhIjKlMnOp"
+const EMAILJS_SERVICE_ID  = "service_o7dma6d";
+const EMAILJS_TEMPLATE_ID = "template_d91rofr";
+const EMAILJS_PUBLIC_KEY  = "xqcop60IMiHuzOz2y";
 
 const SECTORS = ["Compass One","Chartwells","Compass Ireland","B&I","RA","Levy"];
 
