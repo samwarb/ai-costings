@@ -602,14 +602,13 @@ export default function App() {
               <div className="fg">
                 <div className="fgrp"><label className="flbl">Site / Outlet Name *</label><input className="finp" style={{"--sc":sc}} value={siteName} onChange={e=>setSiteName(e.target.value)} placeholder="e.g. Bank of Canada"/></div>
                 <div className="fgrp"><label className="flbl">Unit Number</label><input className="finp" value={unitNumber} onChange={e=>setUnitNumber(e.target.value)} placeholder="e.g. U001"/></div>
-                <div className="fgrp"><label className="flbl">Contact Name *</label><input className="finp" value={contactName} onChange={e=>setContactName(e.target.value)} placeholder="e.g. Sam Warburton"/></div>
                 <div className="fgrp"><label className="flbl">Target Go-Live Date *</label><input className="finp" type="date" value={goLive} onChange={e=>setGoLive(e.target.value)} style={{"--sc":sc}}/></div>
                 <div className="fgrp full"><label className="flbl">Unit Address</label><input className="finp" value={address} onChange={e=>setAddress(e.target.value)} placeholder="e.g. 40 King William Street, London, EC4R 9AT"/></div>
                 <div className="fgrp"><label className="flbl">Sector *</label><select className="finp fsel" style={{"--sc":sc}} value={sector} onChange={e=>setSector(e.target.value)}><option value="">— Select sector —</option>{SECTORS.map(s=><option key={s} value={s}>{s}</option>)}</select></div>
                 <div className="fgrp"><label className="flbl">Sector Contact *</label><input className="finp" value={sectorContact} onChange={e=>setSectorContact(e.target.value)} placeholder="e.g. Jane Smith"/></div>
               </div>
             </div>
-            <div className="btn-row"><button className="btn-g" onClick={goBack}>← Back</button><button className="btn-p" disabled={!siteName||!contactName||!goLive||!sector||!sectorContact} style={{background:(siteName&&contactName&&goLive&&sector&&sectorContact)?sc:"#e5e7eb",color:(siteName&&contactName&&goLive&&sector&&sectorContact)?"#fff":"#9ca3af"}} onClick={goNext}>View Quote →</button></div>
+            <div className="btn-row"><button className="btn-g" onClick={goBack}>← Back</button><button className="btn-p" disabled={!siteName||!goLive||!sector||!sectorContact} style={{background:(siteName&&goLive&&sector&&sectorContact)?sc:"#e5e7eb",color:(siteName&&goLive&&sector&&sectorContact)?"#fff":"#9ca3af"}} onClick={goNext}>View Quote →</button></div>
           </>)}
 
           {step==="summary"&&result&&(<>
