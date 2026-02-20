@@ -411,12 +411,21 @@ export default function App() {
     setEmailStatus("sending");
     const todayStr=new Date().toLocaleDateString("en-GB");
     const goLiveStr=goLive?new Date(goLive+"T00:00:00").toLocaleDateString("en-GB"):"-";
+    const quote=calcQuote({supplier,scanners,weighPays,smeDays,t2eExisting});
     const params={
       client_name:        siteName,
+      name:               siteName,
       outlet_name:        siteName,
+      solution:           SUPPLIERS[supplier].name,
+      total_cost:         fmt(quote.grandTotal),
+      capital_cost:       fmt(quote.capitalCost),
+      annual_cost:        fmt(quote.annualCost),
+      date:               todayStr,
       date_initial_request: todayStr,
       go_live_date:       goLiveStr,
       unit_number:        unitNumber||"-",
+      address:            address||"-",
+      contact_name:       contactName||"-",
       sector:             sector,
       sector_contact:     sectorContact,
       status:             "Prospect",
