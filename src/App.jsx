@@ -387,6 +387,7 @@ export default function App() {
   const [animIn,setAnimIn]=useState(true);
   const [siteName,setSiteName]=useState("");
   const [unitNumber,setUnitNumber]=useState("");
+  const [clientName,setClientName]=useState("");
   const [contactName,setContactName]=useState("");
   const [address,setAddress]=useState("");
   const [goLive,setGoLive]=useState("");
@@ -401,7 +402,7 @@ export default function App() {
   const nav=(next)=>{setAnimIn(false);setTimeout(()=>{setStep(next);setAnimIn(true);},180);};
   const goNext=()=>nav(steps[si+1]);
   const goBack=()=>nav(steps[si-1]);
-  const reset=()=>{setAnimIn(false);setTimeout(()=>{setSupplier(null);setT2eExisting(null);setScanners(1);setWeighPays(0);setSmeDays(1);setSiteName("");setUnitNumber("");setContactName("");setAddress("");setGoLive("");setSector("");setSectorContact("");setEmailStatus("idle");setEmailError("");setStep("supplier");setAnimIn(true);},180);};
+  const reset=()=>{setAnimIn(false);setTimeout(()=>{setSupplier(null);setT2eExisting(null);setScanners(1);setWeighPays(0);setSmeDays(1);setSiteName("");setUnitNumber("");setContactName("");setAddress("");setGoLive("");setSector("");setSectorContact("");setClientName("");setEmailStatus("idle");setEmailError("");setStep("supplier");setAnimIn(true);},180);};
 
   const result=step==="summary"?calcQuote({supplier,scanners,weighPays,smeDays,t2eExisting}):null;
   const siteInfo={siteName,unitNumber,contactName,address,goLive,sector,sectorContact};
@@ -412,7 +413,7 @@ export default function App() {
     const todayStr=new Date().toLocaleDateString("en-GB");
     const goLiveStr=goLive?new Date(goLive+"T00:00:00").toLocaleDateString("en-GB"):"-";
     const params={
-      client_name:            contactName,
+      client_name:            clientName,
       outlet_name:            siteName,
       date_initial_request:   todayStr,
       go_live_date:           goLiveStr,
@@ -602,6 +603,7 @@ export default function App() {
             <div className="card">
               <div className="sec-lbl">Site & contact details</div>
               <div className="fg">
+                <div className="fgrp"><label className="flbl">Client *</label><input className="finp" style={{"--sc":sc}} value={clientName} onChange={e=>setClientName(e.target.value)} placeholder="e.g. Compass One"/></div>
                 <div className="fgrp"><label className="flbl">Site / Outlet Name *</label><input className="finp" style={{"--sc":sc}} value={siteName} onChange={e=>setSiteName(e.target.value)} placeholder="e.g. Bank of Canada"/></div>
                 <div className="fgrp"><label className="flbl">Unit Number</label><input className="finp" value={unitNumber} onChange={e=>setUnitNumber(e.target.value)} placeholder="e.g. U001"/></div>
                 <div className="fgrp"><label className="flbl">Target Go-Live Date *</label><input className="finp" type="date" value={goLive} onChange={e=>setGoLive(e.target.value)} style={{"--sc":sc}}/></div>
@@ -610,7 +612,7 @@ export default function App() {
                 <div className="fgrp"><label className="flbl">Sector Contact *</label><input className="finp" value={sectorContact} onChange={e=>setSectorContact(e.target.value)} placeholder="e.g. Jane Smith"/></div>
               </div>
             </div>
-            <div className="btn-row"><button className="btn-g" onClick={goBack}>← Back</button><button className="btn-p" disabled={!siteName||!goLive||!sector||!sectorContact} style={{background:(siteName&&goLive&&sector&&sectorContact)?sc:"#e5e7eb",color:(siteName&&goLive&&sector&&sectorContact)?"#fff":"#9ca3af"}} onClick={goNext}>View Quote →</button></div>
+            <div className="btn-row"><button className="btn-g" onClick={goBack}>← Back</button><button className="btn-p" disabled={!clientName||!siteName||!goLive||!sector||!sectorContact} style={{background:(clientName&&siteName&&goLive&&sector&&sectorContact)?sc:"#e5e7eb",color:(clientName&&siteName&&goLive&&sector&&sectorContact)?"#fff":"#9ca3af"}} onClick={goNext}>View Quote →</button></div>
           </>)}
 
           {step==="summary"&&result&&(<>
