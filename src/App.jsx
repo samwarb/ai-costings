@@ -393,6 +393,7 @@ export default function App() {
   const [sector,setSector]=useState("");
   const [sectorContact,setSectorContact]=useState("");
   const [emailStatus,setEmailStatus]=useState("idle"); // idle | sending | sent | error
+  const [emailError,setEmailError]=useState("");
 
   const steps=getSteps(supplier);
   const si=steps.indexOf(step);
@@ -400,7 +401,7 @@ export default function App() {
   const nav=(next)=>{setAnimIn(false);setTimeout(()=>{setStep(next);setAnimIn(true);},180);};
   const goNext=()=>nav(steps[si+1]);
   const goBack=()=>nav(steps[si-1]);
-  const reset=()=>{setAnimIn(false);setTimeout(()=>{setSupplier(null);setT2eExisting(null);setScanners(1);setWeighPays(0);setSmeDays(1);setSiteName("");setUnitNumber("");setContactName("");setAddress("");setGoLive("");setSector("");setSectorContact("");setEmailStatus("idle");setStep("supplier");setAnimIn(true);},180);};
+  const reset=()=>{setAnimIn(false);setTimeout(()=>{setSupplier(null);setT2eExisting(null);setScanners(1);setWeighPays(0);setSmeDays(1);setSiteName("");setUnitNumber("");setContactName("");setAddress("");setGoLive("");setSector("");setSectorContact("");setEmailStatus("idle");setEmailError("");setStep("supplier");setAnimIn(true);},180);};
 
   const result=step==="summary"?calcQuote({supplier,scanners,weighPays,smeDays,t2eExisting}):null;
   const siteInfo={siteName,unitNumber,contactName,address,goLive,sector,sectorContact};
@@ -425,7 +426,7 @@ export default function App() {
     };
     emailjs.send(EMAILJS_SERVICE_ID,EMAILJS_TEMPLATE_ID,params,EMAILJS_PUBLIC_KEY)
       .then(()=>setEmailStatus("sent"))
-      .catch((err)=>{console.error("EmailJS error:",err);setEmailStatus("error");});
+      .catch((err)=>{console.error("EmailJS error:",err);setEmailError(err?.text||err?.message||String(err));setEmailStatus("error");});
   };
 
   const css=`
@@ -659,7 +660,7 @@ export default function App() {
                     {emailStatus==="sending"?"⏳ Submitting…":"🚀 Submit to Pipeline"}
                   </button>
                 )}
-                {emailStatus==="error"&&<div className="pipeline-err">⚠ Submission failed — check your EmailJS configuration and try again.</div>}
+                {emailStatus==="error"&&<div className="pipeline-err">⚠ Submission failed{emailError?` — ${emailError}`:""}</div>}
               </div>
             </div>
             <div className="btn-row" style={{marginTop:"1.4rem"}}>
