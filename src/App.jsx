@@ -24,7 +24,7 @@ const SUPPLIERS = {
 //   {{unit_number}}, {{sector}}, {{sector_contact}}, {{status}},
 //   {{ai_tray_autocanteen}}, {{ai_tray_vision_checkout}}, {{deligo_ai_scanners}}
 const EMAILJS_SERVICE_ID  = "service_o7dma6d";
-const EMAILJS_TEMPLATE_ID = "template_d91rofr";
+const EMAILJS_TEMPLATE_ID = "template_bklldas";
 const EMAILJS_PUBLIC_KEY  = "xqcop60IMiHuzOz2y";
 
 const SECTORS = ["Compass One","Chartwells","Compass Ireland","B&I","RA","Levy"];
