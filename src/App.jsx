@@ -425,6 +425,8 @@ export default function App() {
       ai_tray_autocanteen:    supplier==="AUTOCANTEEN"?String(scanners):"0",
       ai_tray_vision_checkout:supplier==="VISION_CHECKOUT"?String(scanners):"0",
       deligo_ai_scanners:     supplier==="DELIGO"?String(scanners):"0",
+      t2e_control_desk:       supplier==="DELIGO"?(t2eExisting===false?"1":"0"):"0",
+      t2e_pos:                supplier==="DELIGO"?String(scanners):"0",
     };
     emailjs.send(EMAILJS_SERVICE_ID,EMAILJS_TEMPLATE_ID,params,EMAILJS_PUBLIC_KEY)
       .then(()=>setEmailStatus("sent"))
