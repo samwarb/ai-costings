@@ -425,7 +425,7 @@ export default function App() {
     };
     emailjs.send(EMAILJS_SERVICE_ID,EMAILJS_TEMPLATE_ID,params,EMAILJS_PUBLIC_KEY)
       .then(()=>setEmailStatus("sent"))
-      .catch(()=>setEmailStatus("error"));
+      .catch((err)=>{console.error("EmailJS error:",err);setEmailStatus("error");});
   };
 
   const css=`
