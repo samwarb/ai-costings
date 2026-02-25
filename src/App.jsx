@@ -218,7 +218,7 @@ function makeSummaryPDF({ siteInfo, supplier, result, scanners, weighPays, t2eEx
   doc.setFontSize(7.5); doc.setFont("helvetica","bold"); doc.setTextColor(146,64,14);
   doc.text("IMPORTANT NOTICE", 14, y+6);
   doc.setFont("helvetica","normal"); doc.setTextColor(120,53,15); doc.setFontSize(7.5);
-const notice = "This costing is a close working guide subject to site surveys before a final cost can be confirmed.\nExclusions: Data points (subject to quote) · Power supply (subject to quote) · Menu build & marketing (subject to quote) · Strip & fit out (subject to quote).\nAll prices exc. VAT. Annual support costs subject to increase in line with the RPI index.";
+const notice = "This costing is a close working guide subject to site surveys before a final cost can be confirmed.\nExclusions: Data points · Power supply · Menu build & marketing · Strip & fit out.\nAll prices exc. VAT. Annual support costs subject to increase in line with the RPI index.";
   const lines = doc.splitTextToSize(notice, W-30);
   doc.text(lines, 14, y+12);
 
