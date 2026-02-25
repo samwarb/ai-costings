@@ -677,6 +677,7 @@ export default function App() {
 
         </div>
       </div>
+      <div style={{position:"fixed",bottom:"8px",right:"10px",fontSize:"10px",color:"#9ca3af",opacity:0.5,pointerEvents:"none"}}>v3</div>
     </div>
   );
 }
