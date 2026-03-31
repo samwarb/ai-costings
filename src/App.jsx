@@ -35,7 +35,7 @@ function getSteps(supplier) {
     : ["supplier","quantities","sme","siteinfo","summary"];
 }
 
-function calcQuote({ supplier, scanners, weighPays, smeDays, t2eExisting }) {
+function calcQuote({ supplier, scanners, weighPays, smeDays, t2eExisting, additionalScreens, receiptPrinters, eduSubscription, mobDays, wbhDays }) {
   const B = [];
   const add = (section, label, unitCost, qty) => {
     const cost = unitCost * qty;
@@ -67,14 +67,23 @@ function calcQuote({ supplier, scanners, weighPays, smeDays, t2eExisting }) {
     ann += add("Annual","Worldpay PED Rental & Support",116.52,scanners);
   }
   if (supplier === "DELIGO") {
-    hw  += add("Hardware","AI Scanner",3800,scanners);
+    hw  += add("Hardware","AI Scanner",4000,scanners);
     hw  += add("Hardware","Worldpay Omni-Channel MID",50,1);
+    if (additionalScreens>0) hw += add("Hardware","Additional Screen",345,additionalScreens);
+    if (receiptPrinters>0) hw += add("Hardware","Receipt Printer",220,receiptPrinters);
     if (weighPays>0) hw += add("Hardware","Weigh & Pay Scale",695,weighPays);
-    ins += add("Installation","Site Survey, Config, Install & Training",750,1);
+    ins += add("Installation","Site Survey, Config & Mobilisation",1000,1);
     ins += add("Installation","UPS Shipping",100,scanners);
-    ann += add("Annual","Deligo Licence Fee",4560,scanners);
+    if (mobDays>0) ins += add("Installation","On-Site Mobilisation Support",500,mobDays);
+    if (wbhDays>0) ins += add("Installation","Weekend/Bank Holiday Mobilisation",250,wbhDays);
+    if (eduSubscription) {
+      ann += add("Annual","Deligo Education Subscription (39 wks/yr)",3600,scanners);
+    } else {
+      ann += add("Annual","Deligo Licence Fee",4800,scanners);
+    }
     ann += add("Annual","POS T2E Licence",150,scanners);
     if (!t2eExisting) ann += add("Annual","Control Desk Fee",625,1);
+    if (weighPays>0) ann += add("Annual","Weigh & Pay Annual Licence",360,weighPays);
     ann += add("Annual","Worldpay PED Rental & Support",116.52,scanners);
   }
 
@@ -382,6 +391,11 @@ export default function App() {
   const [t2eExisting,setT2eExisting]=useState(null);
   const [scanners,setScanners]=useState(1);
   const [weighPays,setWeighPays]=useState(0);
+  const [additionalScreens,setAdditionalScreens]=useState(0);
+  const [receiptPrinters,setReceiptPrinters]=useState(0);
+  const [eduSubscription,setEduSubscription]=useState(false);
+  const [mobDays,setMobDays]=useState(0);
+  const [wbhDays,setWbhDays]=useState(0);
   const [smeDays,setSmeDays]=useState(1);
   const [step,setStep]=useState("supplier");
   const [animIn,setAnimIn]=useState(true);
@@ -402,9 +416,9 @@ export default function App() {
   const nav=(next)=>{setAnimIn(false);setTimeout(()=>{setStep(next);setAnimIn(true);},180);};
   const goNext=()=>nav(steps[si+1]);
   const goBack=()=>nav(steps[si-1]);
-  const reset=()=>{setAnimIn(false);setTimeout(()=>{setSupplier(null);setT2eExisting(null);setScanners(1);setWeighPays(0);setSmeDays(1);setSiteName("");setUnitNumber("");setContactName("");setAddress("");setGoLive("");setSector("");setSectorContact("");setClientName("");setEmailStatus("idle");setEmailError("");setStep("supplier");setAnimIn(true);},180);};
+  const reset=()=>{setAnimIn(false);setTimeout(()=>{setSupplier(null);setT2eExisting(null);setScanners(1);setWeighPays(0);setAdditionalScreens(0);setReceiptPrinters(0);setEduSubscription(false);setMobDays(0);setWbhDays(0);setSmeDays(1);setSiteName("");setUnitNumber("");setContactName("");setAddress("");setGoLive("");setSector("");setSectorContact("");setClientName("");setEmailStatus("idle");setEmailError("");setStep("supplier");setAnimIn(true);},180);};
 
-  const result=step==="summary"?calcQuote({supplier,scanners,weighPays,smeDays,t2eExisting}):null;
+  const result=step==="summary"?calcQuote({supplier,scanners,weighPays,smeDays,t2eExisting,additionalScreens,receiptPrinters,eduSubscription,mobDays,wbhDays}):null;
   const siteInfo={siteName,unitNumber,contactName,address,goLive,sector,sectorContact};
   const pdfArgs={siteInfo,supplier,result,scanners,weighPays,t2eExisting};
 
@@ -579,6 +593,21 @@ export default function App() {
                 {val:scanners,set:setScanners,min:1,lbl:"AI Scanners",sub:supplier==="VISION_CHECKOUT"?"AI Scanner & Base incl. Receipt Printer":supplier==="AUTOCANTEEN"?"AI Scanner & Receipt Printer":"AI Scanner"},
                 {val:weighPays,set:setWeighPays,min:0,lbl:"Weigh & Pay Scales",sub:"£"+(supplier==="VISION_CHECKOUT"?"750":supplier==="AUTOCANTEEN"?"660":"695")+" per unit"},
               ].map((r,i)=>(<div className="qty-row" key={i}><div className="qty-lbl">{r.lbl}<small>{r.sub}</small></div><div className="qty-ctrl"><button className="qty-btn" disabled={r.val<=r.min} onClick={()=>r.set(Math.max(r.min,r.val-1))}>−</button><span className="qty-val" style={{color:sc}}>{r.val}</span><button className="qty-btn" onClick={()=>r.set(r.val+1)}>+</button></div></div>))}
+              {supplier==="DELIGO"&&(<>
+                {[
+                  {val:additionalScreens,set:setAdditionalScreens,min:0,lbl:"Additional Screens",sub:"£345 per unit"},
+                  {val:receiptPrinters,set:setReceiptPrinters,min:0,lbl:"Receipt Printers",sub:"£220 per unit"},
+                ].map((r,i)=>(<div className="qty-row" key={"d"+i}><div className="qty-lbl">{r.lbl}<small>{r.sub}</small></div><div className="qty-ctrl"><button className="qty-btn" disabled={r.val<=r.min} onClick={()=>r.set(Math.max(r.min,r.val-1))}>−</button><span className="qty-val" style={{color:sc}}>{r.val}</span><button className="qty-btn" onClick={()=>r.set(r.val+1)}>+</button></div></div>))}
+                <div className="sec-lbl" style={{marginTop:"1rem",marginBottom:".5rem"}}>Subscription type</div>
+                <div className="t2e-grid">
+                  {[{v:false,l:"Standard",d:"Full year licence — £4,800 per scanner p/a"},{v:true,l:"Education",d:"39-week operational year — £3,600 per scanner p/a"}].map(o=>(
+                    <div key={String(o.v)} className="t2e-card" style={{borderColor:eduSubscription===o.v?sc:undefined,background:eduSubscription===o.v?sc+"0d":undefined}} onClick={()=>setEduSubscription(o.v)}>
+                      <div className="t2e-ttl" style={{color:eduSubscription===o.v?sc:"#111827"}}>{o.l}</div>
+                      <div className="t2e-desc">{o.d}</div>
+                    </div>
+                  ))}
+                </div>
+              </>)}
             </div>
             <div className="btn-row"><button className="btn-g" onClick={goBack}>← Back</button><button className="btn-p" style={{background:sc,color:"#fff"}} onClick={goNext}>Continue →</button></div>
           </>)}
@@ -594,6 +623,13 @@ export default function App() {
                 <div className="qty-ctrl"><button className="qty-btn" disabled={smeDays<=1} onClick={()=>setSmeDays(Math.max(1,smeDays-1))}>−</button><span className="qty-val" style={{color:sc}}>{smeDays}</span><button className="qty-btn" onClick={()=>setSmeDays(smeDays+1)}>+</button></div>
               </div>
               <div className="sme-info">Minimum 1 SME day required.</div>
+              {supplier==="DELIGO"&&(<>
+                <div className="sec-lbl" style={{marginTop:"1rem",marginBottom:".5rem"}}>Mobilisation options <span style={{fontWeight:400,color:"#6b7280"}}>(optional)</span></div>
+                {[
+                  {val:mobDays,set:setMobDays,min:0,lbl:"On-Site Mobilisation Support",sub:"£500 per day / per location"},
+                  {val:wbhDays,set:setWbhDays,min:0,lbl:"Weekend / Bank Holiday Mobilisation",sub:"£250 per day / per location"},
+                ].map((r,i)=>(<div className="qty-row" key={"m"+i} style={{borderBottom:i===1?"none":"",paddingBottom:i===1?0:""}}><div className="qty-lbl">{r.lbl}<small>{r.sub}</small></div><div className="qty-ctrl"><button className="qty-btn" disabled={r.val<=r.min} onClick={()=>r.set(Math.max(r.min,r.val-1))}>−</button><span className="qty-val" style={{color:sc}}>{r.val}</span><button className="qty-btn" onClick={()=>r.set(r.val+1)}>+</button></div></div>))}
+              </>)}
             </div>
             <div className="btn-row"><button className="btn-g" onClick={goBack}>← Back</button><button className="btn-p" style={{background:sc,color:"#fff"}} onClick={goNext}>Continue →</button></div>
           </>)}
