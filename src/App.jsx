@@ -72,9 +72,8 @@ function calcQuote({ supplier, scanners, weighPays, smeDays, t2eExisting, additi
     if (additionalScreens>0) hw += add("Hardware","Additional Screen",345,additionalScreens);
     if (receiptPrinters>0) hw += add("Hardware","Receipt Printer",220,receiptPrinters);
     if (weighPays>0) hw += add("Hardware","Weigh & Pay Scale",695,weighPays);
-    if (weighPays>0) ins += add("Installation","Weigh & Pay Scale Shipping",50,weighPays);
     ins += add("Installation","Site Survey, Config & Mobilisation",1000,1);
-    ins += add("Installation","UPS Shipping",100,scanners);
+    ins += add("Installation","UPS Shipping",100*scanners+50*weighPays,1);
     if (mobDays>0) ins += add("Installation","On-Site Mobilisation Support",500,mobDays);
     if (wbhDays>0) ins += add("Installation","Weekend/Bank Holiday Mobilisation",250,wbhDays);
     if (eduSubscription) {
