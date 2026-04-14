@@ -81,7 +81,6 @@ function calcQuote({ supplier, scanners, weighPays, smeDays, t2eExisting, additi
     } else {
       ann += add("Annual","Deligo Licence Fee",4800,scanners);
     }
-    ann += add("Annual","POS T2E Licence",150,scanners);
     if (!t2eExisting) ann += add("Annual","Control Desk Fee",625,1);
     if (weighPays>0) ann += add("Annual","Weigh & Pay Annual Licence",360,weighPays);
     ann += add("Annual","Worldpay PED Rental & Support",116.52,scanners);
@@ -641,16 +640,16 @@ export default function App() {
             <div className="card">
               <div className="sec-lbl">Site & contact details</div>
               <div className="fg">
-                <div className="fgrp"><label className="flbl">Client *</label><input className="finp" style={{"--sc":sc}} value={clientName} onChange={e=>setClientName(e.target.value)} placeholder="e.g. Compass One"/></div>
-                <div className="fgrp"><label className="flbl">Site / Outlet Name *</label><input className="finp" style={{"--sc":sc}} value={siteName} onChange={e=>setSiteName(e.target.value)} placeholder="e.g. Bank of Canada"/></div>
+                <div className="fgrp"><label className="flbl">Client</label><input className="finp" style={{"--sc":sc}} value={clientName} onChange={e=>setClientName(e.target.value)} placeholder="e.g. Compass One"/></div>
+                <div className="fgrp"><label className="flbl">Site / Outlet Name</label><input className="finp" style={{"--sc":sc}} value={siteName} onChange={e=>setSiteName(e.target.value)} placeholder="e.g. Bank of Canada"/></div>
                 <div className="fgrp"><label className="flbl">Unit Number</label><input className="finp" value={unitNumber} onChange={e=>setUnitNumber(e.target.value)} placeholder="e.g. U001"/></div>
-                <div className="fgrp"><label className="flbl">Target Go-Live Date *</label><input className="finp" type="date" value={goLive} onChange={e=>setGoLive(e.target.value)} style={{"--sc":sc}}/></div>
+                <div className="fgrp"><label className="flbl">Target Go-Live Date</label><input className="finp" type="date" value={goLive} onChange={e=>setGoLive(e.target.value)} style={{"--sc":sc}}/></div>
                 <div className="fgrp full"><label className="flbl">Unit Address</label><input className="finp" value={address} onChange={e=>setAddress(e.target.value)} placeholder="e.g. 40 King William Street, London, EC4R 9AT"/></div>
-                <div className="fgrp"><label className="flbl">Sector *</label><select className="finp fsel" style={{"--sc":sc}} value={sector} onChange={e=>setSector(e.target.value)}><option value="">— Select sector —</option>{SECTORS.map(s=><option key={s} value={s}>{s}</option>)}</select></div>
-                <div className="fgrp"><label className="flbl">Sector Contact *</label><input className="finp" value={sectorContact} onChange={e=>setSectorContact(e.target.value)} placeholder="e.g. Jane Smith"/></div>
+                <div className="fgrp"><label className="flbl">Sector</label><select className="finp fsel" style={{"--sc":sc}} value={sector} onChange={e=>setSector(e.target.value)}><option value="">— Select sector —</option>{SECTORS.map(s=><option key={s} value={s}>{s}</option>)}</select></div>
+                <div className="fgrp"><label className="flbl">Sector Contact</label><input className="finp" value={sectorContact} onChange={e=>setSectorContact(e.target.value)} placeholder="e.g. Jane Smith"/></div>
               </div>
             </div>
-            <div className="btn-row"><button className="btn-g" onClick={goBack}>← Back</button><button className="btn-p" disabled={!clientName||!siteName||!goLive||!sector||!sectorContact} style={{background:(clientName&&siteName&&goLive&&sector&&sectorContact)?sc:"#e5e7eb",color:(clientName&&siteName&&goLive&&sector&&sectorContact)?"#fff":"#9ca3af"}} onClick={goNext}>View Quote →</button></div>
+            <div className="btn-row"><button className="btn-g" onClick={goBack}>← Back</button><button className="btn-p" style={{background:sc,color:"#fff"}} onClick={goNext}>View Quote →</button></div>
           </>)}
 
           {step==="summary"&&result&&(<>
