@@ -49,7 +49,6 @@ function calcQuote({ supplier, scanners, weighPays, smeDays, t2eExisting, additi
     hw  += add("Hardware","Receipt Printer",190,scanners);
     hw  += add("Hardware","Worldpay Omni-Channel MID",50,1);
     if (weighPays>0) hw += add("Hardware","Weigh & Pay Scale",750,weighPays);
-    if (weighPays>0) ins += add("Installation","Weigh & Pay Scale Shipping",50,weighPays);
     ins += add("Installation","Site Survey, Config, Install & Training (1st Device)",1750,1);
     if (scanners>1) ins += add("Installation","Config & Install — Additional Scanner",1072.5,scanners-1);
     ann += add("Annual","Vision / Front End Software",4649.50,scanners);
@@ -60,7 +59,6 @@ function calcQuote({ supplier, scanners, weighPays, smeDays, t2eExisting, additi
     hw  += add("Hardware","AI Scanner & Receipt Printer",4400,scanners);
     hw  += add("Hardware","Worldpay Omni-Channel MID",50,1);
     if (weighPays>0) hw += add("Hardware","Weigh & Pay Scale",660,weighPays);
-    if (weighPays>0) ins += add("Installation","Weigh & Pay Scale Shipping",50,weighPays);
     ins += add("Installation","Site Survey, Config, Install & Training (1st Device)",4576,1);
     if (scanners>1) ins += add("Installation","Config & Install — Additional Scanner",352,scanners-1);
     ins += add("Installation","Hardware Support with SLA",660,scanners);
