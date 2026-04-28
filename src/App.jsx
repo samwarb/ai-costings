@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { jsPDF } from "jspdf";
 import emailjs from "@emailjs/browser";
 
@@ -91,6 +91,26 @@ function calcQuote({ supplier, scanners, weighPays, smeDays, t2eExisting, additi
   const cap = hw + ins + impl;
   const cont = (cap + ann) * 0.025;
   return { breakdown:B, hardwareCost:hw, installCost:ins, implementationTotal:impl, annualCost:ann, capitalCost:cap, contingency:cont, grandTotal:cap+ann+cont };
+}
+
+function buildCustomResult(breakdown) {
+  const hardwareCost = breakdown.filter(b => b.section === "Hardware").reduce((sum, item) => sum + item.cost, 0);
+  const installCost = breakdown.filter(b => b.section === "Installation").reduce((sum, item) => sum + item.cost, 0);
+  const implementationTotal = breakdown.filter(b => b.section === "Implementation").reduce((sum, item) => sum + item.cost, 0);
+  const annualCost = breakdown.filter(b => b.section === "Annual").reduce((sum, item) => sum + item.cost, 0);
+  const capitalCost = hardwareCost + installCost + implementationTotal;
+  const contingency = (capitalCost + annualCost) * 0.025;
+
+  return {
+    breakdown,
+    hardwareCost,
+    installCost,
+    implementationTotal,
+    annualCost,
+    capitalCost,
+    contingency,
+    grandTotal: capitalCost + annualCost + contingency,
+  };
 }
 
 function hexRgb(hex) {
@@ -408,6 +428,8 @@ export default function App() {
   const [sectorContact,setSectorContact]=useState("");
   const [emailStatus,setEmailStatus]=useState("idle"); // idle | sending | sent | error
   const [emailError,setEmailError]=useState("");
+  const [isCustomizing,setIsCustomizing]=useState(false);
+  const [customBreakdown,setCustomBreakdown]=useState([]);
 
   const steps=getSteps(supplier);
   const si=steps.indexOf(step);
@@ -417,9 +439,38 @@ export default function App() {
   const goBack=()=>nav(steps[si-1]);
   const reset=()=>{setAnimIn(false);setTimeout(()=>{setSupplier(null);setT2eExisting(null);setScanners(1);setWeighPays(0);setAdditionalScreens(0);setReceiptPrinters(0);setEduSubscription(false);setMobDays(0);setWbhDays(0);setSmeDays(1);setSiteName("");setUnitNumber("");setContactName("");setAddress("");setGoLive("");setSector("");setSectorContact("");setClientName("");setEmailStatus("idle");setEmailError("");setStep("supplier");setAnimIn(true);},180);};
 
-  const result=step==="summary"?calcQuote({supplier,scanners,weighPays,smeDays,t2eExisting,additionalScreens,receiptPrinters,eduSubscription,mobDays,wbhDays}):null;
+  const result = useMemo(
+    () => step==="summary"?calcQuote({supplier,scanners,weighPays,smeDays,t2eExisting,additionalScreens,receiptPrinters,eduSubscription,mobDays,wbhDays}):null,
+    [step, supplier, scanners, weighPays, smeDays, t2eExisting, additionalScreens, receiptPrinters, eduSubscription, mobDays, wbhDays]
+  );
+  useEffect(()=>{
+    if (step === "summary" && result) {
+      setCustomBreakdown(result.breakdown.map(item => ({...item})));
+      setIsCustomizing(false);
+    }
+  },[step,result]);
+
+  const displayResult = useMemo(
+    ()=> step==="summary" && customBreakdown.length ? buildCustomResult(customBreakdown) : result,
+    [step, customBreakdown, result]
+  );
   const siteInfo={siteName,unitNumber,contactName,address,goLive,sector,sectorContact};
-  const pdfArgs={siteInfo,supplier,result,scanners,weighPays,t2eExisting};
+  const pdfArgs={siteInfo,supplier,result:displayResult,scanners,weighPays,t2eExisting};
+
+  const updateCustomItem = (index, field, value) => {
+    setCustomBreakdown(current => current.map((item, i) => {
+      if (i !== index) return item;
+      if (field === "cost") {
+        const cost = Number(value);
+        return {
+          ...item,
+          cost: Number.isFinite(cost) ? cost : 0,
+          unitCost: item.qty ? (Number.isFinite(cost) ? cost / item.qty : 0) : Number.isFinite(cost) ? cost : 0,
+        };
+      }
+      return { ...item, [field]: value };
+    }));
+  };
 
   const sendPipelineEmail=()=>{
     setEmailStatus("sending");
@@ -499,6 +550,9 @@ export default function App() {
     .bk-title{font-size:.58rem;letter-spacing:.25em;text-transform:uppercase;color:#9ca3af;padding-bottom:.4rem;border-bottom:1.5px solid #f3f4f6;margin-bottom:.6rem;font-weight:600;}
     .bk-row{display:flex;justify-content:space-between;align-items:center;padding:.28rem 0;font-size:.84rem;}
     .bk-row .bl{color:#6b7280;} .bk-row .ba{font-weight:600;color:#111827;}
+    .bk-row.editing{gap:.75rem;align-items:center;}
+    .bk-edit-label{flex:1;min-width:0;}
+    .bk-edit-cost{width:140px;text-align:right;}
     .totals{background:#f9fafb;border:1.5px solid #e5e7eb;border-radius:12px;padding:1.25rem 1.6rem;margin-top:1rem;}
     .t-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:.4rem;font-size:.86rem;}
     .t-row .tl{color:#6b7280;} .t-row .ta{font-weight:600;color:#111827;}
@@ -660,24 +714,57 @@ export default function App() {
               {scanners} scanner{scanners!==1?"s":""}{weighPays>0?` + ${weighPays} weigh & pay`:""} · {smeDays} SME day{smeDays!==1?"s":""}
             </div>
             <div className="card">
+              <div className="btn-row" style={{marginBottom:"1rem"}}>
+                <button className="btn-g" onClick={()=>setIsCustomizing(v=>!v)}>
+                  {isCustomizing ? "Done Editing" : "Customize"}
+                </button>
+              </div>
               {["Hardware","Installation","Annual","Implementation"].map(sec=>{
-                const items=result.breakdown.filter(b=>b.section===sec);
+                const items=customBreakdown
+                  .map((item, index) => ({ ...item, index }))
+                  .filter(item=>item.section===sec);
                 if(!items.length) return null;
-                return(<div className="bk-sec" key={sec}><div className="bk-title">{sec}</div>{items.map((it,i)=>(<div className="bk-row" key={i}><span className="bl">{it.label}{it.qty>1?` (x${it.qty})`:""}</span><span className="ba">{fmt(it.cost)}</span></div>))}</div>);
+                return(
+                  <div className="bk-sec" key={sec}>
+                    <div className="bk-title">{sec}</div>
+                    {items.map((it)=>{
+                      if (isCustomizing) {
+                        return (
+                          <div className="bk-row editing" key={`${sec}-${it.index}`}>
+                            <input
+                              className="finp bk-edit-label"
+                              value={customBreakdown[it.index].label}
+                              onChange={e=>updateCustomItem(it.index,"label",e.target.value)}
+                            />
+                            <input
+                              className="finp bk-edit-cost"
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={customBreakdown[it.index].cost}
+                              onChange={e=>updateCustomItem(it.index,"cost",e.target.value)}
+                            />
+                          </div>
+                        );
+                      }
+                      return <div className="bk-row" key={`${sec}-${it.index}`}><span className="bl">{it.label}{it.qty>1?` (x${it.qty})`:""}</span><span className="ba">{fmt(it.cost)}</span></div>;
+                    })}
+                  </div>
+                );
               })}
             </div>
             <div className="totals">
-              <div className="t-row"><span className="tl">Hardware</span><span className="ta">{fmt(result.hardwareCost)}</span></div>
-              <div className="t-row"><span className="tl">Installation</span><span className="ta">{fmt(result.installCost)}</span></div>
-              <div className="t-row"><span className="tl">Implementation</span><span className="ta">{fmt(result.implementationTotal)}</span></div>
+              <div className="t-row"><span className="tl">Hardware</span><span className="ta">{fmt(displayResult.hardwareCost)}</span></div>
+              <div className="t-row"><span className="tl">Installation</span><span className="ta">{fmt(displayResult.installCost)}</span></div>
+              <div className="t-row"><span className="tl">Implementation</span><span className="ta">{fmt(displayResult.implementationTotal)}</span></div>
               <hr className="t-div"/>
-              <div className="t-row big"><span className="tl">Capital Cost</span><span className="ta" style={{color:sc}}><AnimatedNumber value={result.capitalCost}/></span></div>
+              <div className="t-row big"><span className="tl">Capital Cost</span><span className="ta" style={{color:sc}}><AnimatedNumber value={displayResult.capitalCost}/></span></div>
               <hr className="t-div"/>
-              <div className="t-row"><span className="tl">Annual / Ongoing Cost</span><span className="ta">{fmt(result.annualCost)}</span></div>
+              <div className="t-row"><span className="tl">Annual / Ongoing Cost</span><span className="ta">{fmt(displayResult.annualCost)}</span></div>
               <hr className="t-div"/>
-              <div className="t-row"><span className="tl">Contingency</span><span className="ta">{fmt(result.contingency)}</span></div>
+              <div className="t-row"><span className="tl">Contingency</span><span className="ta">{fmt(displayResult.contingency)}</span></div>
               <hr className="t-div"/>
-              <div className="t-row big"><span className="tl">Total Project Cost</span><span className="ta" style={{color:sc}}><AnimatedNumber value={result.grandTotal}/></span></div>
+              <div className="t-row big"><span className="tl">Total Project Cost</span><span className="ta" style={{color:sc}}><AnimatedNumber value={displayResult.grandTotal}/></span></div>
             </div>
             <div className="pdf-panel">
               <div className="sec-lbl" style={{marginBottom:".5rem"}}>Generate Documents</div>
