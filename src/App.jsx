@@ -39,7 +39,7 @@ function calcQuote({ supplier, scanners, weighPays, smeDays, t2eExisting, additi
   const B = [];
   const add = (section, label, unitCost, qty) => {
     const cost = unitCost * qty;
-    B.push({ section, label, unitCost, qty, cost });
+    B.push({ sectionId: section, section, label, unitCost, qty, cost });
     return cost;
   };
   if (supplier === "VISION_CHECKOUT") {
@@ -85,18 +85,21 @@ function calcQuote({ supplier, scanners, weighPays, smeDays, t2eExisting, additi
   }
 
   const impl = 1250 + smeDays * 300;
-  B.push({ section:"Implementation", label:"Implementation Fee", unitCost:impl, qty:1, cost:impl });
+  B.push({ sectionId:"Implementation", section:"Implementation", label:"Implementation Fee", unitCost:impl, qty:1, cost:impl });
   return buildCustomResult(B);
 }
 
 function buildCustomResult(breakdown, contingencyOverride = null) {
   const sectionOrder = [];
+  const sectionLabels = {};
   const sectionTotals = breakdown.reduce((acc, item) => {
-    if (!(item.section in acc)) {
-      acc[item.section] = 0;
-      sectionOrder.push(item.section);
+    const sectionId = item.sectionId || item.section;
+    if (!(sectionId in acc)) {
+      acc[sectionId] = 0;
+      sectionOrder.push(sectionId);
+      sectionLabels[sectionId] = item.section;
     }
-    acc[item.section] += item.cost;
+    acc[sectionId] += item.cost;
     return acc;
   }, {});
   const subtotal = Object.values(sectionTotals).reduce((sum, value) => sum + value, 0);
@@ -106,6 +109,7 @@ function buildCustomResult(breakdown, contingencyOverride = null) {
   return {
     breakdown,
     sectionOrder,
+    sectionLabels,
     sectionTotals,
     subtotal,
     defaultContingency,
@@ -126,10 +130,11 @@ function makeSummaryPDF({ siteInfo, supplier, result, scanners, weighPays, t2eEx
   const [sr,sg,sb] = hexRgb(sc);
   const today = new Date().toLocaleDateString("en-GB");
   const goLive = siteInfo.goLive ? new Date(siteInfo.goLive+"T00:00:00").toLocaleDateString("en-GB") : "-";
-  const sections = result.sectionOrder.map(section => ({
-    section,
-    items: result.breakdown.filter(item => item.section === section),
-    subtotal: result.sectionTotals[section] || 0,
+  const sections = result.sectionOrder.map(sectionId => ({
+    sectionId,
+    section: result.sectionLabels[sectionId] || sectionId,
+    items: result.breakdown.filter(item => (item.sectionId || item.section) === sectionId),
+    subtotal: result.sectionTotals[sectionId] || 0,
   }));
   const eqLines = [
     `${scanners} x ${SUPPLIERS[supplier].name} AI Scanner${scanners>1?"s":""}`,
@@ -327,8 +332,9 @@ function makeBreakdownPDF({ siteInfo, supplier, result, scanners, weighPays, t2e
   y += 10;
 
   // Rows
-  result.sectionOrder.forEach(sec => {
-    const items = result.breakdown.filter(b => b.section === sec);
+  result.sectionOrder.forEach(sectionId => {
+    const sec = result.sectionLabels[sectionId] || sectionId;
+    const items = result.breakdown.filter(b => (b.sectionId || b.section) === sectionId);
     if (!items.length) return;
 
     // Section header row
@@ -371,7 +377,7 @@ function makeBreakdownPDF({ siteInfo, supplier, result, scanners, weighPays, t2e
   doc.setDrawColor(229,231,235); doc.setLineWidth(0.25);
   doc.roundedRect(10,y,130,30,2,2,"D");
   doc.setFont("helvetica","normal"); doc.setFontSize(8.5); doc.setTextColor(107,114,128);
-  const tots = result.sectionOrder.map(section => [section, result.sectionTotals[section] || 0]);
+  const tots = result.sectionOrder.map(sectionId => [result.sectionLabels[sectionId] || sectionId, result.sectionTotals[sectionId] || 0]);
   tots.forEach(([lbl,val],i) => {
     doc.text(lbl, 14, y+8+i*6);
     doc.text("\u00a3"+fmtN(val), 138, y+8+i*6, {align:"right"});
@@ -472,16 +478,27 @@ export default function App() {
           unitCost: item.qty ? (Number.isFinite(cost) ? cost / item.qty : 0) : Number.isFinite(cost) ? cost : 0,
         };
       }
+      if (field === "qty") {
+        const qty = Math.max(0, Number(value));
+        const safeQty = Number.isFinite(qty) ? qty : 0;
+        return {
+          ...item,
+          qty: safeQty,
+          cost: item.unitCost * safeQty,
+        };
+      }
       return { ...item, [field]: value };
     }));
   };
 
-  const addCustomItem = (section) => {
+  const addCustomItem = (sectionId) => {
     setCustomBreakdown(current => {
       const next = [...current];
-      const insertAt = next.reduce((lastMatch, item, index) => item.section === section ? index + 1 : lastMatch, next.length);
+      const sectionLabel = next.find(item => (item.sectionId || item.section) === sectionId)?.section || sectionId;
+      const insertAt = next.reduce((lastMatch, item, index) => (item.sectionId || item.section) === sectionId ? index + 1 : lastMatch, next.length);
       next.splice(insertAt, 0, {
-        section,
+        sectionId,
+        section: sectionLabel,
         label: "Custom line item",
         unitCost: 0,
         qty: 1,
@@ -495,8 +512,8 @@ export default function App() {
     setCustomBreakdown(current => current.filter((_, i) => i !== index));
   };
 
-  const renameSection = (from, to) => {
-    setCustomBreakdown(current => current.map(item => item.section === from ? { ...item, section: to || "New Section" } : item));
+  const renameSection = (sectionId, to) => {
+    setCustomBreakdown(current => current.map(item => (item.sectionId || item.section) === sectionId ? { ...item, section: to } : item));
   };
 
   const addSection = () => {
@@ -508,11 +525,21 @@ export default function App() {
       name = `${base} ${n}`;
       n += 1;
     }
-    addCustomItem(name);
+    setCustomBreakdown(current => [
+      ...current,
+      {
+        sectionId: `custom-${Date.now()}`,
+        section: name,
+        label: "Custom line item",
+        unitCost: 0,
+        qty: 1,
+        cost: 0,
+      },
+    ]);
   };
 
-  const removeSection = (section) => {
-    setCustomBreakdown(current => current.filter(item => item.section !== section));
+  const removeSection = (sectionId) => {
+    setCustomBreakdown(current => current.filter(item => (item.sectionId || item.section) !== sectionId));
   };
 
   const sendPipelineEmail=()=>{
@@ -595,6 +622,7 @@ export default function App() {
     .bk-row .bl{color:#6b7280;} .bk-row .ba{font-weight:600;color:#111827;}
     .bk-row.editing{gap:.75rem;align-items:center;}
     .bk-edit-label{flex:1;min-width:0;}
+    .bk-edit-qty{width:82px;text-align:center;}
     .bk-edit-cost{width:140px;text-align:right;}
     .bk-head{display:flex;align-items:center;justify-content:space-between;gap:.75rem;padding-bottom:.4rem;border-bottom:1.5px solid #f3f4f6;margin-bottom:.6rem;}
     .bk-title{margin-bottom:0;border-bottom:none;padding-bottom:0;}
@@ -773,20 +801,21 @@ export default function App() {
                 </button>
                 {isCustomizing && <button className="btn-g" onClick={addSection}>Add Section</button>}
               </div>
-              {displayResult.sectionOrder.map(sec=>{
+              {displayResult.sectionOrder.map(sectionId=>{
+                const sec = displayResult.sectionLabels[sectionId] || sectionId;
                 const items=customBreakdown
                   .map((item, index) => ({ ...item, index }))
-                  .filter(item=>item.section===sec);
+                  .filter(item=>(item.sectionId || item.section)===sectionId);
                 if(!items.length) return null;
                 return(
-                  <div className="bk-sec" key={sec}>
+                  <div className="bk-sec" key={sectionId}>
                     <div className="bk-head">
                       <div className="bk-head-left">
                         {isCustomizing ? (
                           <input
                             className="finp bk-section-input"
                             value={sec}
-                            onChange={e=>renameSection(sec, e.target.value)}
+                            onChange={e=>renameSection(sectionId, e.target.value)}
                           />
                         ) : (
                           <div className="bk-title">{sec}</div>
@@ -794,8 +823,8 @@ export default function App() {
                       </div>
                       {isCustomizing && (
                         <div className="btn-row" style={{marginTop:0}}>
-                          <button className="mini-btn" onClick={()=>addCustomItem(sec)}>+ Add line</button>
-                          <button className="mini-btn danger" onClick={()=>removeSection(sec)}>Delete section</button>
+                          <button className="mini-btn" onClick={()=>addCustomItem(sectionId)}>+ Add line</button>
+                          <button className="mini-btn danger" onClick={()=>removeSection(sectionId)}>Delete section</button>
                         </div>
                       )}
                     </div>
@@ -807,6 +836,14 @@ export default function App() {
                               className="finp bk-edit-label"
                               value={customBreakdown[it.index].label}
                               onChange={e=>updateCustomItem(it.index,"label",e.target.value)}
+                            />
+                            <input
+                              className="finp bk-edit-qty"
+                              type="number"
+                              min="0"
+                              step="1"
+                              value={customBreakdown[it.index].qty}
+                              onChange={e=>updateCustomItem(it.index,"qty",e.target.value)}
                             />
                             <input
                               className="finp bk-edit-cost"
@@ -827,8 +864,8 @@ export default function App() {
               })}
             </div>
             <div className="totals">
-              {displayResult.sectionOrder.map(section => (
-                <div className="t-row" key={section}><span className="tl">{section}</span><span className="ta">{fmt(displayResult.sectionTotals[section] || 0)}</span></div>
+              {displayResult.sectionOrder.map(sectionId => (
+                <div className="t-row" key={sectionId}><span className="tl">{displayResult.sectionLabels[sectionId] || sectionId}</span><span className="ta">{fmt(displayResult.sectionTotals[sectionId] || 0)}</span></div>
               ))}
               <hr className="t-div"/>
               <div className="t-row big"><span className="tl">Sub Total</span><span className="ta" style={{color:sc}}><AnimatedNumber value={displayResult.subtotal}/></span></div>
