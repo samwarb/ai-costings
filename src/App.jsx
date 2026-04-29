@@ -269,6 +269,14 @@ function makeBreakdownPDF({ siteInfo, supplier, result, scanners, weighPays, t2e
   const [sr,sg,sb] = hexRgb(sc);
   const today = new Date().toLocaleDateString("en-GB");
   const goLive = siteInfo.goLive ? new Date(siteInfo.goLive+"T00:00:00").toLocaleDateString("en-GB") : "-";
+  const footerTop = H - 11;
+
+  const drawFooter = () => {
+    doc.setFillColor(17,24,39);
+    doc.rect(0,H-11,W,11,"F");
+    doc.setTextColor(107,114,128); doc.setFontSize(6.5); doc.setFont("helvetica","normal");
+    doc.text("Compass UK&I Digital  |  This costing is subject to site survey before a final cost is confirmed. All prices exc. VAT. Annual costs subject to RPI.", W/2, H-4.5, {align:"center"});
+  };
 
   // Header
   doc.setFillColor(17,24,39);
@@ -335,7 +343,7 @@ function makeBreakdownPDF({ siteInfo, supplier, result, scanners, weighPays, t2e
     y += 8;
 
     items.forEach((item, i) => {
-      if (y > H-42) { doc.addPage(); y = 15; }
+      if (y > H-42) { drawFooter(); doc.addPage(); y = 15; }
       if (i%2===0) { doc.setFillColor(249,250,251); doc.rect(10,y-1,W-20,7,"F"); }
       doc.setTextColor(55,65,81); doc.setFont("helvetica","normal"); doc.setFontSize(8.5);
       const labelText = item.label + (item.qty > 1 ? ` (x${item.qty})` : "");
@@ -362,7 +370,8 @@ function makeBreakdownPDF({ siteInfo, supplier, result, scanners, weighPays, t2e
   });
 
   // Grand total block
-  if (y > H-42) { doc.addPage(); y = 15; }
+  const totalsBlockHeight = 44;
+  if (y + totalsBlockHeight > footerTop - 2) { drawFooter(); doc.addPage(); y = 15; }
   doc.setDrawColor(229,231,235); doc.setLineWidth(0.25);
   doc.roundedRect(10,y,130,30,2,2,"D");
   doc.setFont("helvetica","normal"); doc.setFontSize(8.5); doc.setTextColor(107,114,128);
@@ -385,11 +394,7 @@ function makeBreakdownPDF({ siteInfo, supplier, result, scanners, weighPays, t2e
   doc.text("TOTAL PROJECT COST", 14, y+7.5);
   doc.text(fmt(result.grandTotal), W-13, y+7.5, {align:"right"});
 
-  // Footer
-  doc.setFillColor(17,24,39);
-  doc.rect(0,H-11,W,11,"F");
-  doc.setTextColor(107,114,128); doc.setFontSize(6.5); doc.setFont("helvetica","normal");
-  doc.text("Compass UK&I Digital  |  This costing is subject to site survey before a final cost is confirmed. All prices exc. VAT. Annual costs subject to RPI.", W/2, H-4.5, {align:"center"});
+  drawFooter();
 
   doc.save((siteInfo.siteName||"Quote").replace(/[^a-zA-Z0-9]/g,"_")+"_Breakdown.pdf");
 }
