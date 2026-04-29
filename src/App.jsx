@@ -193,7 +193,15 @@ function makeSummaryPDF({ siteInfo, supplier, result, scanners, weighPays, t2eEx
 
   y += 46;
 
+  const ensureSummarySpace = (heightNeeded) => {
+    if (y + heightNeeded > 274) {
+      doc.addPage();
+      y = 16;
+    }
+  };
+
   const drawSection = (title, items, subtotal) => {
+    ensureSummarySpace(21 + items.length * 8);
     doc.setFillColor(sr,sg,sb);
     doc.rect(10,y,W-20,9,"F");
     doc.setTextColor(255,255,255); doc.setFont("helvetica","bold"); doc.setFontSize(10);
@@ -216,25 +224,44 @@ function makeSummaryPDF({ siteInfo, supplier, result, scanners, weighPays, t2eEx
 
   sections.forEach(({ section, items, subtotal }) => drawSection(section, items, subtotal));
 
-  // Totals box
-  doc.setDrawColor(229,231,235); doc.setLineWidth(0.25);
-  doc.roundedRect(10,y,W-20,18,2,2,"D");
-  doc.setTextColor(107,114,128); doc.setFont("helvetica","normal"); doc.setFontSize(9);
-  doc.text("Sub Total",  14, y+7);
-  doc.text(fmtN(result.subtotal), W-13, y+7, {align:"right"});
-  doc.text("Contingency", 14, y+14);
-  doc.text(fmtN(result.contingency), W-13, y+14, {align:"right"});
-  y += 21;
+  // Cost summary
+  ensureSummarySpace(27 + sections.length * 7);
+  doc.setFillColor(sr,sg,sb);
+  doc.rect(10,y,W-20,9,"F");
+  doc.setTextColor(255,255,255); doc.setFont("helvetica","bold"); doc.setFontSize(10);
+  doc.text("Cost Summary", 13, y+6);
+  doc.text("£", W-12, y+6, {align:"right"});
+  y += 11;
 
-  // Grand total
+  sections.forEach(({ section, subtotal }, i) => {
+    if (i%2===0) { doc.setFillColor(249,250,251); doc.rect(10,y-1,W-20,7,"F"); }
+    doc.setTextColor(55,65,81); doc.setFont("helvetica","normal"); doc.setFontSize(8.8);
+    doc.text(section, 14, y+4.5);
+    doc.text(fmtN(subtotal), W-13, y+4.5, {align:"right"});
+    y += 7;
+  });
+
+  doc.setFillColor(229,231,235); doc.rect(10,y,W-20,8,"F");
+  doc.setTextColor(17,24,39); doc.setFont("helvetica","bold"); doc.setFontSize(9.5);
+  doc.text("Sub Total", 14, y+5.5);
+  doc.text(fmt(result.subtotal), W-13, y+5.5, {align:"right"});
+  y += 8;
+
+  doc.setFillColor(243,244,246); doc.rect(10,y,W-20,8,"F");
+  doc.setTextColor(55,65,81); doc.setFont("helvetica","normal"); doc.setFontSize(9);
+  doc.text("Contingency", 14, y+5.5);
+  doc.text(fmt(result.contingency), W-13, y+5.5, {align:"right"});
+  y += 10;
+
   doc.setFillColor(sr,sg,sb);
   doc.rect(10,y,W-20,11,"F");
   doc.setTextColor(255,255,255); doc.setFont("helvetica","bold"); doc.setFontSize(11.5);
-  doc.text("Project Cost", 14, y+7.5);
+  doc.text("Total Project Cost", 14, y+7.5);
   doc.text(fmt(result.grandTotal), W-13, y+7.5, {align:"right"});
   y += 16;
 
   // Equipment summary
+  ensureSummarySpace(44);
   doc.setFont("helvetica","bold"); doc.setFontSize(10); doc.setTextColor(17,24,39);
   doc.text("Equipment Summary", 12, y+5);
   y += 9;
