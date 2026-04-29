@@ -136,13 +136,6 @@ function makeSummaryPDF({ siteInfo, supplier, result, scanners, weighPays, t2eEx
     items: result.breakdown.filter(item => (item.sectionId || item.section) === sectionId),
     subtotal: result.sectionTotals[sectionId] || 0,
   }));
-  const eqLines = [
-    `${scanners} x ${SUPPLIERS[supplier].name} AI Scanner${scanners>1?"s":""}`,
-    ...(weighPays>0 ? [`${weighPays} x Weigh & Pay Scale${weighPays>1?"s":""}`] : []),
-    `${scanners} x Worldpay PED${scanners>1?"s":""}`,
-    ...(t2eExisting !== null ? [t2eExisting ? "Existing T2E site" : "New T2E site"] : []),
-  ];
-
   // Header bar
   doc.setFillColor(17,24,39);
   doc.rect(0,0,W,26,"F");
@@ -259,14 +252,6 @@ function makeSummaryPDF({ siteInfo, supplier, result, scanners, weighPays, t2eEx
   doc.text("Total Project Cost", 14, y+7.5);
   doc.text(fmt(result.grandTotal), W-13, y+7.5, {align:"right"});
   y += 16;
-
-  // Equipment summary
-  ensureSummarySpace(44);
-  doc.setFont("helvetica","bold"); doc.setFontSize(10); doc.setTextColor(17,24,39);
-  doc.text("Equipment Summary", 12, y+5);
-  y += 9;
-  doc.setFont("helvetica","normal"); doc.setFontSize(9); doc.setTextColor(55,65,81);
-  eqLines.forEach(line => { doc.text("\u2022  " + line, 14, y); y += 6; });
 
   // Notice box
   y += 4;
