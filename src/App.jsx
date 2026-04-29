@@ -94,24 +94,27 @@ function calcQuote({ supplier, scanners, weighPays, smeDays, t2eExisting, additi
 }
 
 function buildCustomResult(breakdown, contingencyOverride = null) {
-  const hardwareCost = breakdown.filter(b => b.section === "Hardware").reduce((sum, item) => sum + item.cost, 0);
-  const installCost = breakdown.filter(b => b.section === "Installation").reduce((sum, item) => sum + item.cost, 0);
-  const implementationTotal = breakdown.filter(b => b.section === "Implementation").reduce((sum, item) => sum + item.cost, 0);
-  const annualCost = breakdown.filter(b => b.section === "Annual").reduce((sum, item) => sum + item.cost, 0);
-  const capitalCost = hardwareCost + installCost + implementationTotal;
-  const defaultContingency = (capitalCost + annualCost) * 0.025;
+  const sectionOrder = [];
+  const sectionTotals = breakdown.reduce((acc, item) => {
+    if (!(item.section in acc)) {
+      acc[item.section] = 0;
+      sectionOrder.push(item.section);
+    }
+    acc[item.section] += item.cost;
+    return acc;
+  }, {});
+  const subtotal = Object.values(sectionTotals).reduce((sum, value) => sum + value, 0);
+  const defaultContingency = subtotal * 0.025;
   const contingency = contingencyOverride === null ? defaultContingency : contingencyOverride;
 
   return {
     breakdown,
-    hardwareCost,
-    installCost,
-    implementationTotal,
-    annualCost,
-    capitalCost,
+    sectionOrder,
+    sectionTotals,
+    subtotal,
     defaultContingency,
     contingency,
-    grandTotal: capitalCost + annualCost + contingency,
+    grandTotal: subtotal + contingency,
   };
 }
 
@@ -127,7 +130,11 @@ function makeSummaryPDF({ siteInfo, supplier, result, scanners, weighPays, t2eEx
   const [sr,sg,sb] = hexRgb(sc);
   const today = new Date().toLocaleDateString("en-GB");
   const goLive = siteInfo.goLive ? new Date(siteInfo.goLive+"T00:00:00").toLocaleDateString("en-GB") : "-";
-  const annItems = result.breakdown.filter(b => b.section === "Annual");
+  const sections = result.sectionOrder.map(section => ({
+    section,
+    items: result.breakdown.filter(item => item.section === section),
+    subtotal: result.sectionTotals[section] || 0,
+  }));
   const eqLines = [
     `${scanners} x ${SUPPLIERS[supplier].name} AI Scanner${scanners>1?"s":""}`,
     ...(weighPays>0 ? [`${weighPays} x Weigh & Pay Scale${weighPays>1?"s":""}`] : []),
@@ -185,13 +192,12 @@ function makeSummaryPDF({ siteInfo, supplier, result, scanners, weighPays, t2eEx
 
   y += 46;
 
-  // Capital Cost section
-  const drawSection = (title, rightLabel, items, subtotal) => {
+  const drawSection = (title, items, subtotal) => {
     doc.setFillColor(sr,sg,sb);
     doc.rect(10,y,W-20,9,"F");
     doc.setTextColor(255,255,255); doc.setFont("helvetica","bold"); doc.setFontSize(10);
     doc.text(title,13,y+6);
-    if (rightLabel) doc.text(rightLabel, W-12, y+6, {align:"right"});
+    doc.text("£", W-12, y+6, {align:"right"});
     y += 11;
     items.forEach((item, i) => {
       if (i%2===0) { doc.setFillColor(249,250,251); doc.rect(10,y-1,W-20,8,"F"); }
@@ -207,20 +213,14 @@ function makeSummaryPDF({ siteInfo, supplier, result, scanners, weighPays, t2eEx
     y += 12;
   };
 
-  drawSection("Capital Cost", "£", [
-    {label:"Equipment & Configuration", cost:result.hardwareCost},
-    {label:"Installation & Delivery",   cost:result.installCost},
-    {label:"Implementation",            cost:result.implementationTotal},
-  ], result.capitalCost);
-
-  drawSection("Operating Cost - Per Annum", "£  Yr 1", annItems, result.annualCost);
+  sections.forEach(({ section, items, subtotal }) => drawSection(section, items, subtotal));
 
   // Totals box
   doc.setDrawColor(229,231,235); doc.setLineWidth(0.25);
   doc.roundedRect(10,y,W-20,18,2,2,"D");
   doc.setTextColor(107,114,128); doc.setFont("helvetica","normal"); doc.setFontSize(9);
   doc.text("Sub Total",  14, y+7);
-  doc.text(fmtN(result.capitalCost+result.annualCost), W-13, y+7, {align:"right"});
+  doc.text(fmtN(result.subtotal), W-13, y+7, {align:"right"});
   doc.text("Contingency", 14, y+14);
   doc.text(fmtN(result.contingency), W-13, y+14, {align:"right"});
   y += 21;
@@ -323,8 +323,7 @@ function makeBreakdownPDF({ siteInfo, supplier, result, scanners, weighPays, t2e
   y += 10;
 
   // Rows
-  const secs = ["Hardware","Installation","Annual","Implementation"];
-  secs.forEach(sec => {
+  result.sectionOrder.forEach(sec => {
     const items = result.breakdown.filter(b => b.section === sec);
     if (!items.length) return;
 
@@ -347,7 +346,7 @@ function makeBreakdownPDF({ siteInfo, supplier, result, scanners, weighPays, t2e
       doc.text("\u00a3"+fmtN(item.cost), 197, y+4, {align:"right"});
       doc.setFont("helvetica","normal");
       doc.text(sec, 202, y+4);
-      doc.text(sec==="Annual" ? "\u00a3"+fmtN(item.cost) : "-", W-11, y+4, {align:"right"});
+      doc.text("\u00a3"+fmtN(item.cost), W-11, y+4, {align:"right"});
       y += 7;
     });
 
@@ -358,7 +357,7 @@ function makeBreakdownPDF({ siteInfo, supplier, result, scanners, weighPays, t2e
     doc.setFont("helvetica","bold"); doc.setTextColor(17,24,39); doc.setFontSize(8.5);
     doc.text("Subtotal \u2014 "+sec, 13, y+4);
     doc.text("\u00a3"+fmtN(sub), 197, y+4, {align:"right"});
-    if (sec==="Annual") doc.text("\u00a3"+fmtN(sub), W-11, y+4, {align:"right"});
+    doc.text("\u00a3"+fmtN(sub), W-11, y+4, {align:"right"});
     y += 10;
   });
 
@@ -367,7 +366,7 @@ function makeBreakdownPDF({ siteInfo, supplier, result, scanners, weighPays, t2e
   doc.setDrawColor(229,231,235); doc.setLineWidth(0.25);
   doc.roundedRect(10,y,130,30,2,2,"D");
   doc.setFont("helvetica","normal"); doc.setFontSize(8.5); doc.setTextColor(107,114,128);
-  const tots = [["Hardware",result.hardwareCost],["Installation",result.installCost],["Implementation",result.implementationTotal],["Annual / Ongoing",result.annualCost]];
+  const tots = result.sectionOrder.map(section => [section, result.sectionTotals[section] || 0]);
   tots.forEach(([lbl,val],i) => {
     doc.text(lbl, 14, y+8+i*6);
     doc.text("\u00a3"+fmtN(val), 138, y+8+i*6, {align:"right"});
@@ -377,7 +376,7 @@ function makeBreakdownPDF({ siteInfo, supplier, result, scanners, weighPays, t2e
   doc.text("Contingency", 152, y+8);
   doc.text("\u00a3"+fmtN(result.contingency), W-12, y+8, {align:"right"});
   doc.text("Sub Total", 152, y+16);
-  doc.text("\u00a3"+fmtN(result.capitalCost+result.annualCost), W-12, y+16, {align:"right"});
+  doc.text("\u00a3"+fmtN(result.subtotal), W-12, y+16, {align:"right"});
 
   y += 33;
   doc.setFillColor(sr,sg,sb);
@@ -495,6 +494,26 @@ export default function App() {
     setCustomBreakdown(current => current.filter((_, i) => i !== index));
   };
 
+  const renameSection = (from, to) => {
+    setCustomBreakdown(current => current.map(item => item.section === from ? { ...item, section: to || "New Section" } : item));
+  };
+
+  const addSection = () => {
+    const base = "New Section";
+    const existing = new Set(customBreakdown.map(item => item.section));
+    let name = base;
+    let n = 2;
+    while (existing.has(name)) {
+      name = `${base} ${n}`;
+      n += 1;
+    }
+    addCustomItem(name);
+  };
+
+  const removeSection = (section) => {
+    setCustomBreakdown(current => current.filter(item => item.section !== section));
+  };
+
   const sendPipelineEmail=()=>{
     setEmailStatus("sending");
     const todayStr=new Date().toLocaleDateString("en-GB");
@@ -582,6 +601,8 @@ export default function App() {
     .mini-btn:hover{background:#f9fafb;border-color:#d1d5db;}
     .mini-btn.danger{color:#b91c1c;border-color:#fecaca;}
     .mini-btn.danger:hover{background:#fef2f2;border-color:#fca5a5;}
+    .bk-head-left{display:flex;align-items:center;gap:.6rem;flex:1;min-width:0;}
+    .bk-section-input{max-width:220px;font-size:.72rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#6b7280;}
     .cont-edit{display:flex;align-items:center;justify-content:space-between;gap:1rem;margin:.25rem 0;}
     .cont-edit .finp{width:180px;text-align:right;}
     .totals{background:#f9fafb;border:1.5px solid #e5e7eb;border-radius:12px;padding:1.25rem 1.6rem;margin-top:1rem;}
@@ -749,8 +770,9 @@ export default function App() {
                 <button className="btn-g" onClick={()=>setIsCustomizing(v=>!v)}>
                   {isCustomizing ? "Done Editing" : "Customize"}
                 </button>
+                {isCustomizing && <button className="btn-g" onClick={addSection}>Add Section</button>}
               </div>
-              {["Hardware","Installation","Annual","Implementation"].map(sec=>{
+              {displayResult.sectionOrder.map(sec=>{
                 const items=customBreakdown
                   .map((item, index) => ({ ...item, index }))
                   .filter(item=>item.section===sec);
@@ -758,8 +780,23 @@ export default function App() {
                 return(
                   <div className="bk-sec" key={sec}>
                     <div className="bk-head">
-                      <div className="bk-title">{sec}</div>
-                      {isCustomizing && <button className="mini-btn" onClick={()=>addCustomItem(sec)}>+ Add line</button>}
+                      <div className="bk-head-left">
+                        {isCustomizing ? (
+                          <input
+                            className="finp bk-section-input"
+                            value={sec}
+                            onChange={e=>renameSection(sec, e.target.value)}
+                          />
+                        ) : (
+                          <div className="bk-title">{sec}</div>
+                        )}
+                      </div>
+                      {isCustomizing && (
+                        <div className="btn-row" style={{marginTop:0}}>
+                          <button className="mini-btn" onClick={()=>addCustomItem(sec)}>+ Add line</button>
+                          <button className="mini-btn danger" onClick={()=>removeSection(sec)}>Delete section</button>
+                        </div>
+                      )}
                     </div>
                     {items.map((it)=>{
                       if (isCustomizing) {
@@ -789,13 +826,11 @@ export default function App() {
               })}
             </div>
             <div className="totals">
-              <div className="t-row"><span className="tl">Hardware</span><span className="ta">{fmt(displayResult.hardwareCost)}</span></div>
-              <div className="t-row"><span className="tl">Installation</span><span className="ta">{fmt(displayResult.installCost)}</span></div>
-              <div className="t-row"><span className="tl">Implementation</span><span className="ta">{fmt(displayResult.implementationTotal)}</span></div>
+              {displayResult.sectionOrder.map(section => (
+                <div className="t-row" key={section}><span className="tl">{section}</span><span className="ta">{fmt(displayResult.sectionTotals[section] || 0)}</span></div>
+              ))}
               <hr className="t-div"/>
-              <div className="t-row big"><span className="tl">Capital Cost</span><span className="ta" style={{color:sc}}><AnimatedNumber value={displayResult.capitalCost}/></span></div>
-              <hr className="t-div"/>
-              <div className="t-row"><span className="tl">Annual / Ongoing Cost</span><span className="ta">{fmt(displayResult.annualCost)}</span></div>
+              <div className="t-row big"><span className="tl">Sub Total</span><span className="ta" style={{color:sc}}><AnimatedNumber value={displayResult.subtotal}/></span></div>
               <hr className="t-div"/>
               {isCustomizing ? (
                 <div className="cont-edit">
