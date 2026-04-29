@@ -93,13 +93,14 @@ function calcQuote({ supplier, scanners, weighPays, smeDays, t2eExisting, additi
   return { breakdown:B, hardwareCost:hw, installCost:ins, implementationTotal:impl, annualCost:ann, capitalCost:cap, contingency:cont, grandTotal:cap+ann+cont };
 }
 
-function buildCustomResult(breakdown) {
+function buildCustomResult(breakdown, contingencyOverride = null) {
   const hardwareCost = breakdown.filter(b => b.section === "Hardware").reduce((sum, item) => sum + item.cost, 0);
   const installCost = breakdown.filter(b => b.section === "Installation").reduce((sum, item) => sum + item.cost, 0);
   const implementationTotal = breakdown.filter(b => b.section === "Implementation").reduce((sum, item) => sum + item.cost, 0);
   const annualCost = breakdown.filter(b => b.section === "Annual").reduce((sum, item) => sum + item.cost, 0);
   const capitalCost = hardwareCost + installCost + implementationTotal;
-  const contingency = (capitalCost + annualCost) * 0.025;
+  const defaultContingency = (capitalCost + annualCost) * 0.025;
+  const contingency = contingencyOverride === null ? defaultContingency : contingencyOverride;
 
   return {
     breakdown,
@@ -108,6 +109,7 @@ function buildCustomResult(breakdown) {
     implementationTotal,
     annualCost,
     capitalCost,
+    defaultContingency,
     contingency,
     grandTotal: capitalCost + annualCost + contingency,
   };
@@ -430,6 +432,7 @@ export default function App() {
   const [emailError,setEmailError]=useState("");
   const [isCustomizing,setIsCustomizing]=useState(false);
   const [customBreakdown,setCustomBreakdown]=useState([]);
+  const [customContingency,setCustomContingency]=useState(null);
 
   const steps=getSteps(supplier);
   const si=steps.indexOf(step);
@@ -446,13 +449,14 @@ export default function App() {
   useEffect(()=>{
     if (step === "summary" && result) {
       setCustomBreakdown(result.breakdown.map(item => ({...item})));
+      setCustomContingency(null);
       setIsCustomizing(false);
     }
   },[step,result]);
 
   const displayResult = useMemo(
-    ()=> step==="summary" && customBreakdown.length ? buildCustomResult(customBreakdown) : result,
-    [step, customBreakdown, result]
+    ()=> step==="summary" && customBreakdown.length ? buildCustomResult(customBreakdown, customContingency) : result,
+    [step, customBreakdown, customContingency, result]
   );
   const siteInfo={siteName,unitNumber,contactName,address,goLive,sector,sectorContact};
   const pdfArgs={siteInfo,supplier,result:displayResult,scanners,weighPays,t2eExisting};
@@ -470,6 +474,25 @@ export default function App() {
       }
       return { ...item, [field]: value };
     }));
+  };
+
+  const addCustomItem = (section) => {
+    setCustomBreakdown(current => {
+      const next = [...current];
+      const insertAt = next.reduce((lastMatch, item, index) => item.section === section ? index + 1 : lastMatch, next.length);
+      next.splice(insertAt, 0, {
+        section,
+        label: "Custom line item",
+        unitCost: 0,
+        qty: 1,
+        cost: 0,
+      });
+      return next;
+    });
+  };
+
+  const removeCustomItem = (index) => {
+    setCustomBreakdown(current => current.filter((_, i) => i !== index));
   };
 
   const sendPipelineEmail=()=>{
@@ -553,6 +576,14 @@ export default function App() {
     .bk-row.editing{gap:.75rem;align-items:center;}
     .bk-edit-label{flex:1;min-width:0;}
     .bk-edit-cost{width:140px;text-align:right;}
+    .bk-head{display:flex;align-items:center;justify-content:space-between;gap:.75rem;padding-bottom:.4rem;border-bottom:1.5px solid #f3f4f6;margin-bottom:.6rem;}
+    .bk-title{margin-bottom:0;border-bottom:none;padding-bottom:0;}
+    .mini-btn{padding:.4rem .75rem;border:1.5px solid #e5e7eb;border-radius:8px;background:#fff;color:#4b5563;font-size:.72rem;font-weight:600;cursor:pointer;transition:all .15s;}
+    .mini-btn:hover{background:#f9fafb;border-color:#d1d5db;}
+    .mini-btn.danger{color:#b91c1c;border-color:#fecaca;}
+    .mini-btn.danger:hover{background:#fef2f2;border-color:#fca5a5;}
+    .cont-edit{display:flex;align-items:center;justify-content:space-between;gap:1rem;margin:.25rem 0;}
+    .cont-edit .finp{width:180px;text-align:right;}
     .totals{background:#f9fafb;border:1.5px solid #e5e7eb;border-radius:12px;padding:1.25rem 1.6rem;margin-top:1rem;}
     .t-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:.4rem;font-size:.86rem;}
     .t-row .tl{color:#6b7280;} .t-row .ta{font-weight:600;color:#111827;}
@@ -726,7 +757,10 @@ export default function App() {
                 if(!items.length) return null;
                 return(
                   <div className="bk-sec" key={sec}>
-                    <div className="bk-title">{sec}</div>
+                    <div className="bk-head">
+                      <div className="bk-title">{sec}</div>
+                      {isCustomizing && <button className="mini-btn" onClick={()=>addCustomItem(sec)}>+ Add line</button>}
+                    </div>
                     {items.map((it)=>{
                       if (isCustomizing) {
                         return (
@@ -744,6 +778,7 @@ export default function App() {
                               value={customBreakdown[it.index].cost}
                               onChange={e=>updateCustomItem(it.index,"cost",e.target.value)}
                             />
+                            <button className="mini-btn danger" onClick={()=>removeCustomItem(it.index)}>Remove</button>
                           </div>
                         );
                       }
@@ -762,7 +797,21 @@ export default function App() {
               <hr className="t-div"/>
               <div className="t-row"><span className="tl">Annual / Ongoing Cost</span><span className="ta">{fmt(displayResult.annualCost)}</span></div>
               <hr className="t-div"/>
-              <div className="t-row"><span className="tl">Contingency</span><span className="ta">{fmt(displayResult.contingency)}</span></div>
+              {isCustomizing ? (
+                <div className="cont-edit">
+                  <span className="tl">Contingency</span>
+                  <input
+                    className="finp"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={customContingency ?? displayResult.contingency}
+                    onChange={e=>setCustomContingency(Number(e.target.value))}
+                  />
+                </div>
+              ) : (
+                <div className="t-row"><span className="tl">Contingency</span><span className="ta">{fmt(displayResult.contingency)}</span></div>
+              )}
               <hr className="t-div"/>
               <div className="t-row big"><span className="tl">Total Project Cost</span><span className="ta" style={{color:sc}}><AnimatedNumber value={displayResult.grandTotal}/></span></div>
             </div>
