@@ -42,55 +42,51 @@ function calcQuote({ supplier, scanners, weighPays, smeDays, t2eExisting, additi
     B.push({ section, label, unitCost, qty, cost });
     return cost;
   };
-  let hw = 0, ins = 0, ann = 0;
-
   if (supplier === "VISION_CHECKOUT") {
-    hw  += add("Hardware","AI Scanner & Base",3373,scanners);
-    hw  += add("Hardware","Receipt Printer",190,scanners);
-    hw  += add("Hardware","Worldpay Omni-Channel MID",50,1);
-    if (weighPays>0) hw += add("Hardware","Weigh & Pay Scale",750,weighPays);
-    ins += add("Installation","Site Survey, Config, Install & Training (1st Device)",1750,1);
-    if (scanners>1) ins += add("Installation","Config & Install — Additional Scanner",1072.5,scanners-1);
-    ann += add("Annual","Vision / Front End Software",4649.50,scanners);
-    ann += add("Annual","EFT / TCPOS Cloud License (per Location)",1583,1);
-    ann += add("Annual","Worldpay PED Rental & Support",116.52,scanners);
+    add("Hardware","AI Scanner & Base",3373,scanners);
+    add("Hardware","Receipt Printer",190,scanners);
+    add("Hardware","Worldpay Omni-Channel MID",50,1);
+    if (weighPays>0) add("Hardware","Weigh & Pay Scale",750,weighPays);
+    add("Installation","Site Survey, Config, Install & Training (1st Device)",1750,1);
+    if (scanners>1) add("Installation","Config & Install — Additional Scanner",1072.5,scanners-1);
+    add("Annual","Vision / Front End Software",4649.50,scanners);
+    add("Annual","EFT / TCPOS Cloud License (per Location)",1583,1);
+    add("Annual","Worldpay PED Rental & Support",116.52,scanners);
   }
   if (supplier === "AUTOCANTEEN") {
-    hw  += add("Hardware","AI Scanner & Receipt Printer",4400,scanners);
-    hw  += add("Hardware","Worldpay Omni-Channel MID",50,1);
-    if (weighPays>0) hw += add("Hardware","Weigh & Pay Scale",660,weighPays);
-    ins += add("Installation","Site Survey, Config, Install & Training (1st Device)",4576,1);
-    if (scanners>1) ins += add("Installation","Config & Install — Additional Scanner",352,scanners-1);
-    ins += add("Installation","Hardware Support with SLA",660,scanners);
-    ann += add("Annual","Support & Software License — Scanner",5280,scanners);
-    if (weighPays>0) ann += add("Annual","Support & Software License — Weigh & Pay",440,weighPays);
-    ann += add("Annual","Worldpay PED Rental & Support",116.52,scanners);
+    add("Hardware","AI Scanner & Receipt Printer",4400,scanners);
+    add("Hardware","Worldpay Omni-Channel MID",50,1);
+    if (weighPays>0) add("Hardware","Weigh & Pay Scale",660,weighPays);
+    add("Installation","Site Survey, Config, Install & Training (1st Device)",4576,1);
+    if (scanners>1) add("Installation","Config & Install — Additional Scanner",352,scanners-1);
+    add("Installation","Hardware Support with SLA",660,scanners);
+    add("Annual","Support & Software License — Scanner",5280,scanners);
+    if (weighPays>0) add("Annual","Support & Software License — Weigh & Pay",440,weighPays);
+    add("Annual","Worldpay PED Rental & Support",116.52,scanners);
   }
   if (supplier === "DELIGO") {
-    hw  += add("Hardware","AI Scanner",4000,scanners);
-    hw  += add("Hardware","Worldpay Omni-Channel MID",50,1);
-    if (additionalScreens>0) hw += add("Hardware","Additional Screen",345,additionalScreens);
-    if (receiptPrinters>0) hw += add("Hardware","Receipt Printer",220,receiptPrinters);
-    if (weighPays>0) hw += add("Hardware","Weigh & Pay Scale",695,weighPays);
-    ins += add("Installation","Site Survey, Config & Mobilisation",1000,1);
-    ins += add("Installation","UPS Shipping",100,scanners);
-    if (mobDays>0) ins += add("Installation","On-Site Mobilisation Support",500,mobDays);
-    if (wbhDays>0) ins += add("Installation","Weekend/Bank Holiday Mobilisation",250,wbhDays);
+    add("Hardware","AI Scanner",4000,scanners);
+    add("Hardware","Worldpay Omni-Channel MID",50,1);
+    if (additionalScreens>0) add("Hardware","Additional Screen",345,additionalScreens);
+    if (receiptPrinters>0) add("Hardware","Receipt Printer",220,receiptPrinters);
+    if (weighPays>0) add("Hardware","Weigh & Pay Scale",695,weighPays);
+    add("Installation","Site Survey, Config & Mobilisation",1000,1);
+    add("Installation","UPS Shipping",100,scanners);
+    if (mobDays>0) add("Installation","On-Site Mobilisation Support",500,mobDays);
+    if (wbhDays>0) add("Installation","Weekend/Bank Holiday Mobilisation",250,wbhDays);
     if (eduSubscription) {
-      ann += add("Annual","Deligo Education Subscription (39 wks/yr)",3600,scanners);
+      add("Annual","Deligo Education Subscription (39 wks/yr)",3600,scanners);
     } else {
-      ann += add("Annual","Deligo Licence Fee",4800,scanners);
+      add("Annual","Deligo Licence Fee",4800,scanners);
     }
-    if (!t2eExisting) ann += add("Annual","Control Desk Fee",625,1);
-    if (weighPays>0) ann += add("Annual","Weigh & Pay Annual Licence",360,weighPays);
-    ann += add("Annual","Worldpay PED Rental & Support",116.52,scanners);
+    if (!t2eExisting) add("Annual","Control Desk Fee",625,1);
+    if (weighPays>0) add("Annual","Weigh & Pay Annual Licence",360,weighPays);
+    add("Annual","Worldpay PED Rental & Support",116.52,scanners);
   }
 
   const impl = 1250 + smeDays * 300;
   B.push({ section:"Implementation", label:"Implementation Fee", unitCost:impl, qty:1, cost:impl });
-  const cap = hw + ins + impl;
-  const cont = (cap + ann) * 0.025;
-  return { breakdown:B, hardwareCost:hw, installCost:ins, implementationTotal:impl, annualCost:ann, capitalCost:cap, contingency:cont, grandTotal:cap+ann+cont };
+  return buildCustomResult(B);
 }
 
 function buildCustomResult(breakdown, contingencyOverride = null) {
