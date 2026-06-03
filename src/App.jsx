@@ -118,6 +118,18 @@ function buildCustomResult(breakdown, contingencyOverride = null) {
   };
 }
 
+function getCostTypeTotals(result) {
+  return result.breakdown.reduce((totals, item) => {
+    const sectionId = item.sectionId || item.section;
+    if (sectionId === "Annual") {
+      totals.opexTotal += item.cost;
+    } else {
+      totals.capexTotal += item.cost;
+    }
+    return totals;
+  }, { capexTotal: 0, opexTotal: 0 });
+}
+
 function hexRgb(hex) {
   return [parseInt(hex.slice(1,3),16), parseInt(hex.slice(3,5),16), parseInt(hex.slice(5,7),16)];
 }
@@ -136,6 +148,7 @@ function makeSummaryPDF({ siteInfo, supplier, result, scanners, weighPays, t2eEx
     items: result.breakdown.filter(item => (item.sectionId || item.section) === sectionId),
     subtotal: result.sectionTotals[sectionId] || 0,
   }));
+  const { capexTotal, opexTotal } = getCostTypeTotals(result);
   // Header bar
   doc.setFillColor(17,24,39);
   doc.rect(0,0,W,26,"F");
@@ -218,7 +231,7 @@ function makeSummaryPDF({ siteInfo, supplier, result, scanners, weighPays, t2eEx
   sections.forEach(({ section, items, subtotal }) => drawSection(section, items, subtotal));
 
   // Cost summary
-  ensureSummarySpace(27 + sections.length * 7);
+  ensureSummarySpace(41 + sections.length * 7);
   doc.setFillColor(sr,sg,sb);
   doc.rect(10,y,W-20,9,"F");
   doc.setTextColor(255,255,255); doc.setFont("helvetica","bold"); doc.setFontSize(10);
@@ -231,6 +244,17 @@ function makeSummaryPDF({ siteInfo, supplier, result, scanners, weighPays, t2eEx
     doc.setTextColor(55,65,81); doc.setFont("helvetica","normal"); doc.setFontSize(8.8);
     doc.text(section, 14, y+4.5);
     doc.text(fmtN(subtotal), W-13, y+4.5, {align:"right"});
+    y += 7;
+  });
+
+  [
+    ["Capex Costs", capexTotal],
+    ["Opex Costs", opexTotal],
+  ].forEach(([label, value], i) => {
+    if ((sections.length + i)%2===0) { doc.setFillColor(249,250,251); doc.rect(10,y-1,W-20,7,"F"); }
+    doc.setTextColor(17,24,39); doc.setFont("helvetica","bold"); doc.setFontSize(8.8);
+    doc.text(label, 14, y+4.5);
+    doc.text(fmtN(value), W-13, y+4.5, {align:"right"});
     y += 7;
   });
 
@@ -384,24 +408,32 @@ function makeBreakdownPDF({ siteInfo, supplier, result, scanners, weighPays, t2e
   });
 
   // Grand total block
-  const totalsBlockHeight = 44;
+  const { capexTotal, opexTotal } = getCostTypeTotals(result);
+  const tots = result.sectionOrder.map(sectionId => [result.sectionLabels[sectionId] || sectionId, result.sectionTotals[sectionId] || 0]);
+  const boxHeight = Math.max(42, 12 + tots.length * 6);
+  const totalsBlockHeight = boxHeight + 14;
   if (y + totalsBlockHeight > footerTop - 2) { drawFooter(); doc.addPage(); y = 15; }
   doc.setDrawColor(229,231,235); doc.setLineWidth(0.25);
-  doc.roundedRect(10,y,130,30,2,2,"D");
+  doc.roundedRect(10,y,130,boxHeight,2,2,"D");
   doc.setFont("helvetica","normal"); doc.setFontSize(8.5); doc.setTextColor(107,114,128);
-  const tots = result.sectionOrder.map(sectionId => [result.sectionLabels[sectionId] || sectionId, result.sectionTotals[sectionId] || 0]);
   tots.forEach(([lbl,val],i) => {
     doc.text(lbl, 14, y+8+i*6);
     doc.text("\u00a3"+fmtN(val), 138, y+8+i*6, {align:"right"});
   });
 
-  doc.roundedRect(148,y,W-158,30,2,2,"D");
-  doc.text("Contingency", 152, y+8);
-  doc.text("\u00a3"+fmtN(result.contingency), W-12, y+8, {align:"right"});
-  doc.text("Sub Total", 152, y+16);
-  doc.text("\u00a3"+fmtN(result.subtotal), W-12, y+16, {align:"right"});
+  doc.roundedRect(148,y,W-158,boxHeight,2,2,"D");
+  doc.setFont("helvetica","bold"); doc.setTextColor(17,24,39);
+  doc.text("Capex Costs", 152, y+8);
+  doc.text("\u00a3"+fmtN(capexTotal), W-12, y+8, {align:"right"});
+  doc.text("Opex Costs", 152, y+16);
+  doc.text("\u00a3"+fmtN(opexTotal), W-12, y+16, {align:"right"});
+  doc.setFont("helvetica","normal"); doc.setTextColor(107,114,128);
+  doc.text("Sub Total", 152, y+24);
+  doc.text("\u00a3"+fmtN(result.subtotal), W-12, y+24, {align:"right"});
+  doc.text("Contingency", 152, y+32);
+  doc.text("\u00a3"+fmtN(result.contingency), W-12, y+32, {align:"right"});
 
-  y += 33;
+  y += boxHeight + 3;
   doc.setFillColor(sr,sg,sb);
   doc.rect(10,y,W-20,11,"F");
   doc.setTextColor(255,255,255); doc.setFont("helvetica","bold"); doc.setFontSize(12);
@@ -476,6 +508,7 @@ export default function App() {
     ()=> step==="summary" && customBreakdown.length ? buildCustomResult(customBreakdown, customContingency) : result,
     [step, customBreakdown, customContingency, result]
   );
+  const costTypeTotals = displayResult ? getCostTypeTotals(displayResult) : { capexTotal: 0, opexTotal: 0 };
   const siteInfo={siteName,unitNumber,contactName,address,goLive,sector,sectorContact};
   const pdfArgs={siteInfo,supplier,result:displayResult,scanners,weighPays,t2eExisting};
 
@@ -879,6 +912,9 @@ export default function App() {
               {displayResult.sectionOrder.map(sectionId => (
                 <div className="t-row" key={sectionId}><span className="tl">{displayResult.sectionLabels[sectionId] || sectionId}</span><span className="ta">{fmt(displayResult.sectionTotals[sectionId] || 0)}</span></div>
               ))}
+              <hr className="t-div"/>
+              <div className="t-row"><span className="tl">Capex Costs</span><span className="ta">{fmt(costTypeTotals.capexTotal)}</span></div>
+              <div className="t-row"><span className="tl">Opex Costs</span><span className="ta">{fmt(costTypeTotals.opexTotal)}</span></div>
               <hr className="t-div"/>
               <div className="t-row big"><span className="tl">Sub Total</span><span className="ta" style={{color:sc}}><AnimatedNumber value={displayResult.subtotal}/></span></div>
               <hr className="t-div"/>
