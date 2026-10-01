@@ -9,7 +9,8 @@ const autocanteenB64 = "data:image/png;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSU
 const visionB64 = "data:image/png;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADb/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCABEAK0DASIAAhEBAxEB/8QAHAABAAMAAwEBAAAAAAAAAAAAAAUGBwMECAEC/8QAPBAAAQMEAQIEAwUECQUAAAAAAQIDBAAFBhEHEiEIEzFBIlFhFCMycYEVQpGhFhg3OFR0lLHSU2NzsrP/xAAaAQEAAwEBAQAAAAAAAAAAAAAAAQMEAgUG/8QALREAAgEDAgQEBgMBAAAAAAAAAQIAAwQREiEFMUFhE1GR8BQicYGx0RWhweH/2gAMAwEAAhEDEQA/APZdQVmyWJOvtwsjim2pkV0pQjrH3qNb2Bvex7jXavzmeR/0dYjOfZUyPPWpOipY1ob/AHG1/wA9VnER+633K3JdnV5UpxZeSnqfSlGh6FSmwNdvf19K229qXQs2wxsZhuLsU3CqcnO4mzUrqWxc9UFo3BhluT06cS251J38wdD1pcZzdvimTJBCApKdIBUokkAAADv3NZNJzgTZqGMmdulK4pj6IsN6U4CUMtqcUB66A2dVyBmdE4nLSsZ/rHYN/gL5/p2/+dWG18v45ccKu2WswLui3Wtxtt0rYSFLUtQSAj4tHXUN9xrdbn4bdIMshHT1mFOJ2jnC1AevpNFpVWxjOrRkGDv5fCZmIgMJdUpDqEhz7vfVoAke3bvX541zyz59bZU+zsTGWozwZWJKEpJPSD20T271Q1tVUMSuynB7GXrc0mKgNuwyO4lrpWXZbzrg+P3Zy2Bcy5PMnpdXDbSptKgdFPUVDZH02PrVmwzP8fyjFJOTRlvwrdFWtDy5iQ30dIBJ7Egjv867eyuEQVGQgGcJfW7uaauCRLXSsdm+IrBGJi2Wo93ktJOvObYSEq+oClA6/MCrLl/K2N4zj1lvsxi4vRLy2XYvksjqCelKviClDXZQrtuHXSlQUOTynC8RtWDEOMDnL7SqhnvINlwzH4F7ujE12POWlDSWEJUoEoKxsFQ9hXSynlTHsdxSy5JNjXFcO8IC46WmklaQUBXxAqAHY+xNVpaVnAKqTnYfWWPeUEJDMBjc/Qy+UrKMd55w6+X6DZokK8IkTZCGGlOMoCQpR0NkLPbvXDdfEFhVuucq3uwr0tyM8tlakMI6SUkg62v07Vb/ABl3q0+Gcyn+UtNOrxBia7SsrsHO2HXp6W1Hi3ZsxYbstZdZQAUNp6iBpZ7n2qN/rHYN/gL7/p2/+dSOF3ZOPDMHilmAD4g3mzUrOLRzHi9zxC75PHi3MQ7UttD6FtIDhK/TpHVo/wARVowHLLdmmOt321NSWoy3FthL6Qle0nR7AmqKlpWpAs6kAHH35y+ld0apCowJIz9uUgeY45fhW4ALOnV/hY8z2H/cRr+dZ9B+3wVq+wzZsVS9BXkxlIKvlvUnvW/VQLTYre1nV0v9zkErEg/ZmHWmiEnQ+PYb6vyPUf8AatlpdaaRQ9P7mK7tNVUODz/qTeH22daLW5MvVzlSX1p61h1aylpAG9dJWv4vXZBqi5RfF3zIojxU+1AivoU2hUXq9FDayQ8Pl2+HYHsaueZxLXkVuTEfv8uBHQetwR0NkOa7gKDjagQCN+nrWXZJj1jhpaFlvV0uC1bK1FmElKR+rIO/5VZZqHcu5+Y9uX+Su9ZkQIg+Ud+f+za7VfLXdHlswZPmrQnqUPLUnQ/UCu+4hDram3EhSFgpUkjYIPqKyfhSGqNf5qy4+rcbX3gj6/EP+mhJ/j2rVJ76osF+Shhx9TTalhpsbUsgb6QPmfSsFzRFKroU5m+1rmtS1sMTzT4lWMdiXS14ViuPW5i5yFpdfXHjpQv4j0tthXtskk/pV35JxiPiHhkuFijgdTLMcvrH77pfbK1fx3+mqye3wOVInIjucLwWfNuK3lupTKhrUhBUNDQSR+EdhW021rL+SeJ8gtWYWZuy3GQtTUVvyVtJISELQshRJ11jW/pX0NzmgtAawVUgsc5JOfwJ87bYuGrnQQzAhRjAAx+TILhb+7Pc/wDxT/8AZVU/hi6SrNwBnVxhKKJDbvS2oeqSpCE7H5dW6jLTJ5cxfEbhgEfEZK40lTrZdERa1p6+yvLWk9JB76Oj61rXDnGr9q4nuOP5E35Um9eYqQ1sK8kKSEpHbtsaB/OpuTToLUZ2BDuCADnIzmRaipcPTVFIKIQSRjBxgSqeFPD8euWL3C+XW2RLjLXLMdH2lsOpbQlKT2SoEAkk9/yrueKtDFg4+tlmssVi3wZtwUt9mO2EIUQkq9B9dH9KqePR+XOIJ0+2Wuwfte3yXOpC/s63mVkdg4noUClRA7g/Idverxc7JlnLnE8hGR2dFlv0WYXrelbSmkOJCRoaUSQFAkbPuBUVsrei6dwaeR19Nu0mjhrFrVEIqYPT137ywcPYDiTfGVlck2G3TX50JuS+9JjJcWpTiQojagSAN6GvlVG8ZDTTNmxdhlCW2m1voQlI0EgJbAAHyqIxfK+acKtTOKt4YqYiIS2yp6E44QNnSQttQSpO96Pf86mPEZbsqyvCcOmIx2aq4FDi5sZhlSiw4pCPhI7kdwdbrmjSqUuIJVqOCpJxvnoZ1Wq06vDnpUkIYAZ2x1HrKByzyBesrxG02m5Yo/aGIbqFtyFlenSGynQ6kgdwd+p9KsPN39hXHH+Wb/8Agmrr4krHerpxljsW22uZMfjyGi82y0VqQPJUnZA+p1UHy5imS3LhzA7ZAsU+TNhx0JksNskrZPkpGlD279q0W9xRYUCoCjU22ex85muLasprhiWJVd8dx5Tk4OvMO65DZ7W/xbFgeTHC03fyDsrbQCF7KANkje9+9c/ixx+x23DoVxt9ohRZki6gPPtMhK17bcJ2R67IBrkwLL+Yo8yxWKbggZtbbjEV6QuG6lSGQQkrKivQIT39NdqnfFVZ7recDt7Not0qe61ckuOIjtlakp8twbIHtsgfrWXUU4jTOQAfJs+fP9TWUFThtRQCSPNceXL9yZ4axbGzxxYp/wCw7f8Aa5drQiQ95Cet1K0aWFHXffvWL+ICyWe1cv2KBbbZEiRHWo5cZZaCUL28Qdgeux2r0NxRElQONcehTY7keSzAaQ604nSkKCe4I9jWPeIDG8gunMFgnW2yz5kVDbAU8yyVISUukqBI9NDvVXDrg/HuWbb5ust4lbj4BAq7/L09ZdOcbHZrHwzkDVmtcSAh3ylOJjtBAUQ4kbOq+eFb+yKN/m3/AP2qb56gTrnxVeYVuiPS5K0IKGmUFSlaWknQH0FdDw22u42ji2LEukGRCkfaXl+U+goV0lXY6PzrN4mrhhDHfX9+U1eHp4oCowNH25zSaUpXjz2YrM82xCLAvka+w4qExlSm1yfvEIDSisfF8Q9CfkfU9hWmV8WhK0lK0hST6gjYq6hXai2RKa9Bay4M+0pSqZdFKUpEUpSkRSlKRFKUpEUpSkRSlKRFKUpEUpSkRSlKRFR2TybnDx6fLs8VuXcGGFOMR3CQHVJG+jt7nWh9SKkaUiVNGXtXKTi7NiQ1KTe2jMWpe/uYiUbUsgfvdam0AH3UflVHs+dyLdimKQrXDsNgjzrcuSmTc3nUw0FK+nyEH1Kzvq+JQ0O+legvWG4TAxm8Xa4xpT8gznD5DTgHTCZKlOFlvX7pcWtf6gegFdSJhNytuO2yyWbKn4saFG+zrQ9BZfQ8Nk9RSobCu+ux19KnaJ1LtkMa3ZNaLpeIUAuNY7OnPy4jy3Q2htTJWls9gtKt72U7+EenehyzLrdChZBf7JamLFMdYbW1HkrVLhJeUlCFr2noc+JaQoJ107OirVdy0cc2a3s2yL5z0mJBtkq3KZeCdPokLStwq0AB3SdJSAADoa0K/EbApJRBt9zyq5XKyW91t2PAeabBWWiFNB10DqcCSEnXbZSOrqpt7+sdJHoy3ObgMhlWey2Qw7HcJEbUqS4lyaloAkI6QQ2dEjqVsEj0A71BZnyzkMnI8XxHjixW+dfL/aU3ku3V5TceJFI7FQR8SlE7Gge31320ezY2xbYN5ityXHE3WZIlrUoDbZdABA+g1VKyjhi23aPjEq25FeLDkGNwUQId4gKSHVshISUOJIKVJPc6+p+dREyvxCXvkZWK8dS8hx2FAyZrNGW2ocK4Ex5vSD0Hq9UJUe2lbIHf6VcbNzJlWP5Zk+Nco2K0RZNnsK78y/ZnXFtusI/Eghffq32B7enpU3I4SiSrLjkG4ZjkNzkWW/pvpmT3g+5IeB30d+yEfRPp3+dTV54rs145MnZpcpT0hM+xLski3qQPKWyokqO/XZB1T/v4/cdffn+pjmF+JnIbjkVhVdrLYXLNe5aI4j25Ulc2Alw6Qt0qR5awNjfTqrXE5S5UzC8X+Vxrh2PzsfsdxXb1G5TVtSZzjZAc8rWkoHy6t+35VYMC4afw+7W4weRstfsNscUqHZnnmyylJBAbUrp6loG+yT6aFdS78DQ3L9d5uOZzlOL269yftV0ttskJQ086TtSkEjqbKvfpNTt79/WJl2a8rxOMfEfm15vLLrsyRj0FmDbEvbSuUroPT1fhSkd9q+Q+taNkvJnIlmaw7E27Hj07kDJ0OP8AlIdcRb4TKB1EqV1FThA7fCQCQde25u5cG4jd82vuSX3zLqm8Wdu1LjykBZZQgJHmJcPxeYekfF67qOc4Giu4pj9rdzS/C74y6s2S+NdCJcZpWh5KuxDiNDXcenb0qBy397mDz9+QleuHOeX2LGOQIOSY7aIuZ4hGYlhEd1bkKWy6tASsdwsaChsE+4+oq2Zbyde7TK4sYiwLe4cxeS3M8wL+52yhf3eldu6td99q5bBwdjcPH8pgXy53XIrhlTQau10nOjz3EgaQEaGkBPYgAew+QFQlj8PjcHIMVu9x5Dya9f0WkBdtjzS2pptoDQb0APkNq9dAD2qR0z2kHlt3kB4acm5YvPKmdQsl/Z8i0w7u41NBmuOGC6Eq6GoyVdvK2O+69HVnGP8AFTWPcpXTNbLlN4hxrvIMq42cBtUaQ8UlPWSR1D1J0D6/TtWj1HQSTzMUpSkRSlKRFKUpEUpSkRSlKRFKUpEUpSkRSlKRFKUpEUpSkRSlKRFKUpE//9k=";
 
 
-const fmt  = (n) => (+n).toLocaleString("en-GB",{style:"currency",currency:"GBP",minimumFractionDigits:2});
+const fmt = (n, currency = "GBP") => (+n).toLocaleString("en-GB",{style:"currency",currency,minimumFractionDigits:2});
+const currencySymbol = (currency) => currency === "EUR" ? "€" : "£";
 const fmtN = (n) => (+n).toLocaleString("en-GB",{minimumFractionDigits:2,maximumFractionDigits:2});
 
 const SUPPLIERS = {
@@ -36,7 +37,7 @@ function getSteps(supplier) {
     : ["supplier","quantities","sme","siteinfo","summary"];
 }
 
-function calcQuote({ supplier, scanners, weighPays, smeDays, t2eExisting, additionalScreens, receiptPrinters, eduSubscription, mobDays, wbhDays }) {
+function calcQuote({ supplier, scanners, weighPays, smeDays, t2eExisting, additionalScreens, receiptPrinters, eduSubscription, mobDays, wbhDays, currency = "GBP" }) {
   const B = [];
   const add = (section, label, unitCost, qty) => {
     const cost = unitCost * qty;
@@ -66,22 +67,34 @@ function calcQuote({ supplier, scanners, weighPays, smeDays, t2eExisting, additi
     add("Annual","Worldpay PED Rental & Support",116.52,scanners);
   }
   if (supplier === "DELIGO") {
-    add("Hardware","AI Scanner",4000,scanners);
+    // EUR supplier prices from Pricing changes. GBP retains the existing quote rates.
+    const euros = currency === "EUR";
+    // Charges absent from the pricing sheet retain the same numeric amounts in EUR,
+    // as confirmed by Sam: Worldpay, Control Desk, on-site support and implementation.
+    add("Hardware","AI Scanner",euros ? 4750 : 4000,scanners);
     add("Hardware","Worldpay Omni-Channel MID",50,1);
-    if (additionalScreens>0) add("Hardware","Additional Screen",345,additionalScreens);
-    if (receiptPrinters>0) add("Hardware","Receipt Printer",220,receiptPrinters);
-    if (weighPays>0) add("Hardware","Weigh & Pay Scale",695,weighPays);
-    add("Installation","Site Survey, Config & Mobilisation",1000,1);
-    add("Installation","UPS Shipping",100,scanners);
-    if (mobDays>0) add("Installation","On-Site Mobilisation Support",500,mobDays);
-    if (wbhDays>0) add("Installation","Weekend/Bank Holiday Mobilisation",250,wbhDays);
-    if (eduSubscription) {
-      add("Annual","Deligo Education Subscription (39 wks/yr)",3600,scanners);
+    if (additionalScreens>0) add("Hardware","Additional Screen",euros ? 400 : 345,additionalScreens);
+    if (receiptPrinters>0) add("Hardware","Receipt Printer",euros ? 255 : 220,receiptPrinters);
+    if (weighPays>0) add("Hardware","Weigh & Pay Scale",euros ? 825 : 695,weighPays);
+    add("Installation","Site Survey, Config & Mobilisation",euros ? 1250 : 1000,1);
+    if (euros) {
+      add("Installation","Standard Shipping — Kiosk",120.95,scanners);
+      if (additionalScreens>0) add("Installation","Standard Shipping — Additional Screen",55,additionalScreens);
+      if (receiptPrinters>0) add("Installation","Standard Shipping — Receipt Printer",55,receiptPrinters);
+      if (weighPays>0) add("Installation","Standard Shipping — Weigh & Pay Scale",85,weighPays);
     } else {
-      add("Annual","Deligo Licence Fee",4800,scanners);
+      add("Installation","UPS Shipping",100,scanners);
+    }
+    if (mobDays>0) add("Installation","On-Site Mobilisation Support",500,mobDays);
+    if (wbhDays>0) add("Installation","Weekend/Bank Holiday Mobilisation",euros ? 300 : 250,wbhDays);
+    // Monthly supplier subscriptions are annualised for the Annual section.
+    if (eduSubscription) {
+      add("Annual","Deligo Education Subscription (39 wks/yr)",euros ? 365 * 12 : 3600,scanners);
+    } else {
+      add("Annual","Deligo Licence Fee",euros ? 475 * 12 : 4800,scanners);
     }
     if (!t2eExisting) add("Annual","Control Desk Fee",625,1);
-    if (weighPays>0) add("Annual","Weigh & Pay Annual Licence",360,weighPays);
+    if (weighPays>0) add("Annual","Weigh & Pay Annual Licence",euros ? 35 * 12 : 360,weighPays);
     add("Annual","Worldpay PED Rental & Support",116.52,scanners);
   }
 
@@ -136,7 +149,8 @@ function hexRgb(hex) {
 }
 
 // ── Excel builder ────────────────────────────────────────────────────────────
-async function makeExcelQuote({ siteInfo, supplier, result }) {
+async function makeExcelQuote({ siteInfo, supplier, result, currency = "GBP" }) {
+  const symbol = currencySymbol(currency);
   const workbook = new ExcelJS.Workbook();
   workbook.creator = "Compass UK&I Digital";
   workbook.created = new Date();
@@ -165,7 +179,7 @@ async function makeExcelQuote({ siteInfo, supplier, result }) {
   const bodyText = "#1B2738";
   const mutedText = "#6B7280";
   const lightBorder = { style: "thin", color: { argb: "FFD9E0E6" } };
-  const currencyFormat = '"£"#,##0.00';
+  const currencyFormat = `"${symbol}"#,##0.00`;
   const toArgb = (hex) => `FF${hex.replace("#", "").toUpperCase()}`;
   const solid = (hex) => ({ type: "pattern", pattern: "solid", fgColor: { argb: toArgb(hex) } });
   const setRowStyle = (rowNumber, { fill, font, alignment, border } = {}) => {
@@ -191,7 +205,7 @@ async function makeExcelQuote({ siteInfo, supplier, result }) {
     : "-";
   const setAmount = (rowNumber, value, formula = null, font = null) => {
     const cell = sheet.getCell(rowNumber, 8);
-    cell.value = formula ? { formula, result: value } : value;
+    cell.value = formula ? { formula: formula.replace(/^=/, ""), result: value } : value;
     cell.numFmt = currencyFormat;
     cell.alignment = { horizontal: "right", vertical: "center" };
     if (font) cell.font = font;
@@ -270,7 +284,7 @@ async function makeExcelQuote({ siteInfo, supplier, result }) {
     const items = result.breakdown.filter((item) => (item.sectionId || item.section) === sectionId);
     sheet.mergeCells(`A${rowNumber}:G${rowNumber}`);
     sheet.getCell(`A${rowNumber}`).value = sectionLabel;
-    sheet.getCell(`H${rowNumber}`).value = "£";
+    sheet.getCell(`H${rowNumber}`).value = symbol;
     setRowStyle(rowNumber, {
       fill: supplierColour,
       font: { name: "Aptos", size: 11, bold: true, color: { argb: "FFFFFFFF" } },
@@ -325,7 +339,7 @@ async function makeExcelQuote({ siteInfo, supplier, result }) {
   const costSummaryBandRow = rowNumber;
   sheet.mergeCells(`A${costSummaryBandRow}:G${costSummaryBandRow}`);
   sheet.getCell(`A${costSummaryBandRow}`).value = "Cost Summary";
-  sheet.getCell(`H${costSummaryBandRow}`).value = "£";
+  sheet.getCell(`H${costSummaryBandRow}`).value = symbol;
   setRowStyle(costSummaryBandRow, {
     fill: supplierColour,
     font: { name: "Aptos", size: 11, bold: true, color: { argb: "FFFFFFFF" } },
@@ -478,7 +492,7 @@ async function makeExcelQuote({ siteInfo, supplier, result }) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = `${filenameBase}_Quote.xlsx`;
+  link.download = `${filenameBase}_Quote${currency === "EUR" ? "_EUR" : ""}.xlsx`;
   document.body.appendChild(link);
   link.click();
   link.remove();
@@ -486,7 +500,9 @@ async function makeExcelQuote({ siteInfo, supplier, result }) {
 }
 
 // ── PDF builders ─────────────────────────────────────────────────────────────
-function makeSummaryPDF({ siteInfo, supplier, result, scanners, weighPays, t2eExisting }) {
+function makeSummaryPDF({ siteInfo, supplier, result, scanners, weighPays, t2eExisting, currency = "GBP" }) {
+  const symbol = currencySymbol(currency);
+  const formatMoney = (value) => fmt(value, currency);
   const doc = new jsPDF({ orientation:"portrait", unit:"mm", format:"a4" });
   const W = 210;
   const sc = SUPPLIERS[supplier].color;
@@ -563,7 +579,7 @@ function makeSummaryPDF({ siteInfo, supplier, result, scanners, weighPays, t2eEx
     doc.rect(10,y,W-20,9,"F");
     doc.setTextColor(255,255,255); doc.setFont("helvetica","bold"); doc.setFontSize(10);
     doc.text(title,13,y+6);
-    doc.text("£", W-12, y+6, {align:"right"});
+    doc.text(symbol, W-12, y+6, {align:"right"});
     y += 11;
     items.forEach((item, i) => {
       if (i%2===0) { doc.setFillColor(249,250,251); doc.rect(10,y-1,W-20,8,"F"); }
@@ -575,19 +591,19 @@ function makeSummaryPDF({ siteInfo, supplier, result, scanners, weighPays, t2eEx
     doc.setFillColor(229,231,235); doc.rect(10,y,W-20,8,"F");
     doc.setTextColor(17,24,39); doc.setFont("helvetica","bold"); doc.setFontSize(9.5);
     doc.text("Sub Total", 14, y+5.5);
-    doc.text(fmt(subtotal), W-13, y+5.5, {align:"right"});
+    doc.text(formatMoney(subtotal), W-13, y+5.5, {align:"right"});
     y += 12;
   };
 
   sections.forEach(({ section, items, subtotal }) => drawSection(section, items, subtotal));
 
   // Cost summary
-  ensureSummarySpace(41 + sections.length * 7);
+  ensureSummarySpace(65 + sections.length * 7);
   doc.setFillColor(sr,sg,sb);
   doc.rect(10,y,W-20,9,"F");
   doc.setTextColor(255,255,255); doc.setFont("helvetica","bold"); doc.setFontSize(10);
   doc.text("Cost Summary", 13, y+6);
-  doc.text("£", W-12, y+6, {align:"right"});
+  doc.text(symbol, W-12, y+6, {align:"right"});
   y += 11;
 
   sections.forEach(({ section, subtotal }, i) => {
@@ -612,23 +628,24 @@ function makeSummaryPDF({ siteInfo, supplier, result, scanners, weighPays, t2eEx
   doc.setFillColor(229,231,235); doc.rect(10,y,W-20,8,"F");
   doc.setTextColor(17,24,39); doc.setFont("helvetica","bold"); doc.setFontSize(9.5);
   doc.text("Sub Total", 14, y+5.5);
-  doc.text(fmt(result.subtotal), W-13, y+5.5, {align:"right"});
+  doc.text(formatMoney(result.subtotal), W-13, y+5.5, {align:"right"});
   y += 8;
 
   doc.setFillColor(243,244,246); doc.rect(10,y,W-20,8,"F");
   doc.setTextColor(55,65,81); doc.setFont("helvetica","normal"); doc.setFontSize(9);
   doc.text("Contingency", 14, y+5.5);
-  doc.text(fmt(result.contingency), W-13, y+5.5, {align:"right"});
+  doc.text(formatMoney(result.contingency), W-13, y+5.5, {align:"right"});
   y += 10;
 
   doc.setFillColor(sr,sg,sb);
   doc.rect(10,y,W-20,11,"F");
   doc.setTextColor(255,255,255); doc.setFont("helvetica","bold"); doc.setFontSize(11.5);
   doc.text("Total Project Cost", 14, y+7.5);
-  doc.text(fmt(result.grandTotal), W-13, y+7.5, {align:"right"});
+  doc.text(formatMoney(result.grandTotal), W-13, y+7.5, {align:"right"});
   y += 16;
 
   // Notice box
+  ensureSummarySpace(34);
   y += 4;
   doc.setFillColor(255,251,235);
   doc.setDrawColor(252,211,77);
@@ -647,10 +664,12 @@ const notice = "This costing is a close working guide subject to site surveys be
   doc.text("Compass UK&I Digital  |  Leadership through innovation", 11, 292);
   doc.text("Generated "+today+" \u00b7 Estimate - subject to site survey", W-11, 292, {align:"right"});
 
-  doc.save((siteInfo.siteName||"Quote").replace(/[^a-zA-Z0-9]/g,"_")+"_Summary.pdf");
+  doc.save((siteInfo.siteName||"Quote").replace(/[^a-zA-Z0-9]/g,"_")+"_Summary"+(currency === "EUR" ? "_EUR" : "")+".pdf");
 }
 
-function makeBreakdownPDF({ siteInfo, supplier, result, scanners, weighPays, t2eExisting }) {
+function makeBreakdownPDF({ siteInfo, supplier, result, scanners, weighPays, t2eExisting, currency = "GBP" }) {
+  const symbol = currencySymbol(currency);
+  const formatMoney = (value) => fmt(value, currency);
   const doc = new jsPDF({ orientation:"landscape", unit:"mm", format:"a4" });
   const W = 297, H = 210;
   const sc = SUPPLIERS[supplier].color;
@@ -737,13 +756,13 @@ function makeBreakdownPDF({ siteInfo, supplier, result, scanners, weighPays, t2e
       doc.setTextColor(55,65,81); doc.setFont("helvetica","normal"); doc.setFontSize(8.5);
       const labelText = item.label + (item.qty > 1 ? ` (x${item.qty})` : "");
       doc.text(labelText, 12, y+4);
-      doc.text("\u00a3"+fmtN(item.unitCost), 145, y+4, {align:"right"});
+      doc.text(symbol+fmtN(item.unitCost), 145, y+4, {align:"right"});
       doc.text(String(item.qty), 156, y+4, {align:"center"});
       doc.setFont("helvetica","bold");
-      doc.text("\u00a3"+fmtN(item.cost), 197, y+4, {align:"right"});
+      doc.text(symbol+fmtN(item.cost), 197, y+4, {align:"right"});
       doc.setFont("helvetica","normal");
       doc.text(sec, 202, y+4);
-      doc.text("\u00a3"+fmtN(item.cost), W-11, y+4, {align:"right"});
+      doc.text(symbol+fmtN(item.cost), W-11, y+4, {align:"right"});
       y += 7;
     });
 
@@ -753,8 +772,8 @@ function makeBreakdownPDF({ siteInfo, supplier, result, scanners, weighPays, t2e
     doc.rect(10,y-1,W-20,7,"F");
     doc.setFont("helvetica","bold"); doc.setTextColor(17,24,39); doc.setFontSize(8.5);
     doc.text("Subtotal \u2014 "+sec, 13, y+4);
-    doc.text("\u00a3"+fmtN(sub), 197, y+4, {align:"right"});
-    doc.text("\u00a3"+fmtN(sub), W-11, y+4, {align:"right"});
+    doc.text(symbol+fmtN(sub), 197, y+4, {align:"right"});
+    doc.text(symbol+fmtN(sub), W-11, y+4, {align:"right"});
     y += 10;
   });
 
@@ -769,42 +788,44 @@ function makeBreakdownPDF({ siteInfo, supplier, result, scanners, weighPays, t2e
   doc.setFont("helvetica","normal"); doc.setFontSize(8.5); doc.setTextColor(107,114,128);
   tots.forEach(([lbl,val],i) => {
     doc.text(lbl, 14, y+8+i*6);
-    doc.text("\u00a3"+fmtN(val), 138, y+8+i*6, {align:"right"});
+    doc.text(symbol+fmtN(val), 138, y+8+i*6, {align:"right"});
   });
 
   doc.roundedRect(148,y,W-158,boxHeight,2,2,"D");
   doc.setFont("helvetica","bold"); doc.setTextColor(17,24,39);
   doc.text("Capex Costs", 152, y+8);
-  doc.text("\u00a3"+fmtN(capexTotal), W-12, y+8, {align:"right"});
+  doc.text(symbol+fmtN(capexTotal), W-12, y+8, {align:"right"});
   doc.text("Opex Costs", 152, y+16);
-  doc.text("\u00a3"+fmtN(opexTotal), W-12, y+16, {align:"right"});
+  doc.text(symbol+fmtN(opexTotal), W-12, y+16, {align:"right"});
   doc.setFont("helvetica","normal"); doc.setTextColor(107,114,128);
   doc.text("Sub Total", 152, y+24);
-  doc.text("\u00a3"+fmtN(result.subtotal), W-12, y+24, {align:"right"});
+  doc.text(symbol+fmtN(result.subtotal), W-12, y+24, {align:"right"});
   doc.text("Contingency", 152, y+32);
-  doc.text("\u00a3"+fmtN(result.contingency), W-12, y+32, {align:"right"});
+  doc.text(symbol+fmtN(result.contingency), W-12, y+32, {align:"right"});
 
   y += boxHeight + 3;
   doc.setFillColor(sr,sg,sb);
   doc.rect(10,y,W-20,11,"F");
   doc.setTextColor(255,255,255); doc.setFont("helvetica","bold"); doc.setFontSize(12);
   doc.text("TOTAL PROJECT COST", 14, y+7.5);
-  doc.text(fmt(result.grandTotal), W-13, y+7.5, {align:"right"});
+  doc.text(formatMoney(result.grandTotal), W-13, y+7.5, {align:"right"});
 
   drawFooter();
 
-  doc.save((siteInfo.siteName||"Quote").replace(/[^a-zA-Z0-9]/g,"_")+"_Breakdown.pdf");
+  doc.save((siteInfo.siteName||"Quote").replace(/[^a-zA-Z0-9]/g,"_")+"_Breakdown"+(currency === "EUR" ? "_EUR" : "")+".pdf");
 }
 
 // ── Animated number ──────────────────────────────────────────────────────────
-function AnimatedNumber({value}) {
+function AnimatedNumber({value, currency = "GBP"}) {
   const [d,setD]=useState(0); const p=useRef(0);
   useEffect(()=>{
     const s=p.current,e=value,t0=performance.now();
-    const f=(now)=>{const r=Math.min((now-t0)/700,1),ease=1-Math.pow(1-r,3);setD(s+(e-s)*ease);if(r<1)requestAnimationFrame(f);else{p.current=e;setD(e);}};
-    requestAnimationFrame(f);
+    let frame;
+    const f=(now)=>{const r=Math.min((now-t0)/700,1),ease=1-Math.pow(1-r,3);p.current=s+(e-s)*ease;setD(p.current);if(r<1)frame=requestAnimationFrame(f);};
+    frame=requestAnimationFrame(f);
+    return ()=>cancelAnimationFrame(frame);
   },[value]);
-  return <span>{fmt(d)}</span>;
+  return <span>{fmt(d,currency)}</span>;
 }
 
 // ── Main app ─────────────────────────────────────────────────────────────────
@@ -832,8 +853,10 @@ export default function App() {
   const [emailStatus,setEmailStatus]=useState("idle"); // idle | sending | sent | error
   const [emailError,setEmailError]=useState("");
   const [isCustomizing,setIsCustomizing]=useState(false);
-  const [customBreakdown,setCustomBreakdown]=useState([]);
-  const [customContingency,setCustomContingency]=useState(null);
+  const [quoteCurrency,setQuoteCurrency]=useState("GBP");
+  const [customQuotes,setCustomQuotes]=useState({});
+  const currency = supplier === "DELIGO" ? quoteCurrency : "GBP";
+  const formatMoney = (value) => fmt(value, currency);
 
   const steps=getSteps(supplier);
   const si=steps.indexOf(step);
@@ -841,28 +864,36 @@ export default function App() {
   const nav=(next)=>{setAnimIn(false);setTimeout(()=>{setStep(next);setAnimIn(true);},180);};
   const goNext=()=>nav(steps[si+1]);
   const goBack=()=>nav(steps[si-1]);
-  const reset=()=>{setAnimIn(false);setTimeout(()=>{setSupplier(null);setT2eExisting(null);setScanners(1);setWeighPays(0);setAdditionalScreens(0);setReceiptPrinters(0);setEduSubscription(false);setMobDays(0);setWbhDays(0);setSmeDays(1);setSiteName("");setUnitNumber("");setContactName("");setAddress("");setGoLive("");setSector("");setSectorContact("");setClientName("");setEmailStatus("idle");setEmailError("");setStep("supplier");setAnimIn(true);},180);};
+  const reset=()=>{setAnimIn(false);setTimeout(()=>{setSupplier(null);setT2eExisting(null);setScanners(1);setWeighPays(0);setAdditionalScreens(0);setReceiptPrinters(0);setEduSubscription(false);setMobDays(0);setWbhDays(0);setSmeDays(1);setSiteName("");setUnitNumber("");setContactName("");setAddress("");setGoLive("");setSector("");setSectorContact("");setClientName("");setEmailStatus("idle");setEmailError("");setQuoteCurrency("GBP");setCustomQuotes({});setStep("supplier");setAnimIn(true);},180);};
 
   const result = useMemo(
-    () => step==="summary"?calcQuote({supplier,scanners,weighPays,smeDays,t2eExisting,additionalScreens,receiptPrinters,eduSubscription,mobDays,wbhDays}):null,
-    [step, supplier, scanners, weighPays, smeDays, t2eExisting, additionalScreens, receiptPrinters, eduSubscription, mobDays, wbhDays]
+    () => step==="summary"?calcQuote({supplier,scanners,weighPays,smeDays,t2eExisting,additionalScreens,receiptPrinters,eduSubscription,mobDays,wbhDays,currency}):null,
+    [step, supplier, scanners, weighPays, smeDays, t2eExisting, additionalScreens, receiptPrinters, eduSubscription, mobDays, wbhDays, currency]
   );
   useEffect(()=>{
-    if (step === "summary" && result) {
-      setCustomBreakdown(result.breakdown.map(item => ({...item})));
-      setCustomContingency(null);
-      setIsCustomizing(false);
-    }
-  },[step,result]);
+    setCustomQuotes({});
+    setIsCustomizing(false);
+  },[step, supplier, scanners, weighPays, smeDays, t2eExisting, additionalScreens, receiptPrinters, eduSubscription, mobDays, wbhDays]);
 
+  const customBreakdown = customQuotes[currency]?.breakdown ?? result?.breakdown ?? [];
+  const customContingency = customQuotes[currency]?.contingency ?? null;
+  const setCustomBreakdown = (update) => {
+    setCustomQuotes(current => {
+      const quote = current[currency] || { breakdown: result.breakdown, contingency: null };
+      return { ...current, [currency]: { ...quote, breakdown: typeof update === "function" ? update(quote.breakdown) : update } };
+    });
+  };
+  const setCustomContingency = (value) => {
+    setCustomQuotes(current => ({ ...current, [currency]: { breakdown: current[currency]?.breakdown ?? result.breakdown, contingency: value } }));
+  };
   const displayResult = useMemo(
-    ()=> step==="summary" && customBreakdown.length ? buildCustomResult(customBreakdown, customContingency) : result,
-    [step, customBreakdown, customContingency, result]
+    ()=> step==="summary" && customQuotes[currency] ? buildCustomResult(customQuotes[currency].breakdown, customQuotes[currency].contingency) : result,
+    [step, customQuotes, currency, result]
   );
   const costTypeTotals = displayResult ? getCostTypeTotals(displayResult) : { capexTotal: 0, opexTotal: 0 };
   const siteInfo={siteName,unitNumber,clientName,contactName,address,goLive,sector,sectorContact};
-  const pdfArgs={siteInfo,supplier,result:displayResult,scanners,weighPays,t2eExisting};
-  const excelArgs={siteInfo,supplier,result:displayResult};
+  const pdfArgs={siteInfo,supplier,result:displayResult,scanners,weighPays,t2eExisting,currency};
+  const excelArgs={siteInfo,supplier,result:displayResult,currency};
 
   const updateCustomItem = (index, field, value) => {
     setCustomBreakdown(current => current.map((item, i) => {
@@ -1011,6 +1042,13 @@ export default function App() {
     .btn-p:disabled{opacity:.4;cursor:default;transform:none;box-shadow:none;}
     .btn-g{padding:.75rem 1.4rem;border:1.5px solid #e5e7eb;border-radius:9px;font-family:'Inter',sans-serif;font-size:.8rem;cursor:pointer;background:#fff;color:#6b7280;transition:all .15s;font-weight:500;}
     .btn-g:hover{border-color:#d1d5db;color:#374151;background:#f9fafb;}
+    .currency-row{display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:1.4rem;}
+    .currency-row .badge{margin-bottom:0;}
+    .currency-toggle{display:flex;gap:4px;padding:4px;border:1.5px solid #e5e7eb;border-radius:12px;background:#fff;}
+    .currency-btn{min-height:44px;padding:.6rem 1rem;border:none;border-radius:8px;background:transparent;color:#6b7280;font-family:'Inter',sans-serif;font-size:.85rem;font-weight:600;cursor:pointer;}
+    .currency-btn[aria-pressed="true"]{background:var(--sc);color:#fff;}
+    .currency-btn:focus-visible{outline:3px solid var(--sc);outline-offset:3px;}
+    .currency-note{font-size:.72rem;line-height:1.6;color:#6b7280;margin-bottom:1rem;}
     .badge{display:inline-flex;align-items:center;gap:.45rem;padding:.28rem .85rem;border-radius:100px;font-size:.66rem;letter-spacing:.08em;margin-bottom:1.4rem;font-weight:600;}
     .badge img{height:15px;object-fit:contain;}
     .bk-sec{margin-bottom:1.25rem;}
@@ -1187,10 +1225,22 @@ export default function App() {
           {step==="summary"&&result&&(<>
             <div className="ttl">Quote summary</div>
             <div className="sub">{siteName} · {SUPPLIERS[supplier].name}</div>
-            <div className="badge" style={{background:sc+"18",color:sc}}>
-              <img src={SUPPLIERS[supplier].logo} alt=""/>
-              {scanners} scanner{scanners!==1?"s":""}{weighPays>0?` + ${weighPays} weigh & pay`:""} · {smeDays} SME day{smeDays!==1?"s":""}
+            <div className="currency-row">
+              <div className="badge" style={{background:sc+"18",color:sc}}>
+                <img src={SUPPLIERS[supplier].logo} alt=""/>
+                {scanners} scanner{scanners!==1?"s":""}{weighPays>0?` + ${weighPays} weigh & pay`:""} · {smeDays} SME day{smeDays!==1?"s":""}
+              </div>
+              {supplier === "DELIGO" && (
+                <div className="currency-toggle" role="group" aria-label="Quote currency">
+                  {[{code:"GBP",label:"£ GBP"},{code:"EUR",label:"€ EUR"}].map(option => (
+                    <button key={option.code} type="button" className="currency-btn" aria-pressed={currency === option.code} onClick={()=>{setQuoteCurrency(option.code);setIsCustomizing(false);}}>{option.label}</button>
+                  ))}
+                </div>
+              )}
             </div>
+            {supplier === "DELIGO" && currency === "EUR" && (
+              <div className="currency-note">Euro supplier prices include standard shipping. Monthly subscriptions are shown as annual costs. Other charges use the agreed euro amounts.</div>
+            )}
             <div className="card">
               <div className="btn-row" style={{marginBottom:"1rem"}}>
                 <button className="btn-g" onClick={()=>setIsCustomizing(v=>!v)}>
@@ -1244,6 +1294,7 @@ export default function App() {
                             />
                             <input
                               className="finp bk-edit-cost"
+                              aria-label={`${it.label} total cost (${currency})`}
                               type="number"
                               min="0"
                               step="0.01"
@@ -1254,7 +1305,7 @@ export default function App() {
                           </div>
                         );
                       }
-                      return <div className="bk-row" key={`${sec}-${it.index}`}><span className="bl">{it.label}{it.qty>1?` (x${it.qty})`:""}</span><span className="ba">{fmt(it.cost)}</span></div>;
+                      return <div className="bk-row" key={`${sec}-${it.index}`}><span className="bl">{it.label}{it.qty>1?` (x${it.qty})`:""}</span><span className="ba">{formatMoney(it.cost)}</span></div>;
                     })}
                   </div>
                 );
@@ -1262,13 +1313,13 @@ export default function App() {
             </div>
             <div className="totals">
               {displayResult.sectionOrder.map(sectionId => (
-                <div className="t-row" key={sectionId}><span className="tl">{displayResult.sectionLabels[sectionId] || sectionId}</span><span className="ta">{fmt(displayResult.sectionTotals[sectionId] || 0)}</span></div>
+                <div className="t-row" key={sectionId}><span className="tl">{displayResult.sectionLabels[sectionId] || sectionId}</span><span className="ta">{formatMoney(displayResult.sectionTotals[sectionId] || 0)}</span></div>
               ))}
               <hr className="t-div"/>
-              <div className="t-row"><span className="tl">Capex Costs</span><span className="ta">{fmt(costTypeTotals.capexTotal)}</span></div>
-              <div className="t-row"><span className="tl">Opex Costs</span><span className="ta">{fmt(costTypeTotals.opexTotal)}</span></div>
+              <div className="t-row"><span className="tl">Capex Costs</span><span className="ta">{formatMoney(costTypeTotals.capexTotal)}</span></div>
+              <div className="t-row"><span className="tl">Opex Costs</span><span className="ta">{formatMoney(costTypeTotals.opexTotal)}</span></div>
               <hr className="t-div"/>
-              <div className="t-row big"><span className="tl">Sub Total</span><span className="ta" style={{color:sc}}><AnimatedNumber value={displayResult.subtotal}/></span></div>
+              <div className="t-row big"><span className="tl">Sub Total</span><span className="ta" style={{color:sc}}><AnimatedNumber value={displayResult.subtotal} currency={currency}/></span></div>
               <hr className="t-div"/>
               {isCustomizing ? (
                 <div className="cont-edit">
@@ -1278,15 +1329,16 @@ export default function App() {
                     type="number"
                     min="0"
                     step="0.01"
+                    aria-label={`Contingency (${currency})`}
                     value={customContingency ?? displayResult.contingency}
                     onChange={e=>setCustomContingency(Number(e.target.value))}
                   />
                 </div>
               ) : (
-                <div className="t-row"><span className="tl">Contingency</span><span className="ta">{fmt(displayResult.contingency)}</span></div>
+                <div className="t-row"><span className="tl">Contingency</span><span className="ta">{formatMoney(displayResult.contingency)}</span></div>
               )}
               <hr className="t-div"/>
-              <div className="t-row big"><span className="tl">Total Project Cost</span><span className="ta" style={{color:sc}}><AnimatedNumber value={displayResult.grandTotal}/></span></div>
+              <div className="t-row big"><span className="tl">Total Project Cost</span><span className="ta" style={{color:sc}}><AnimatedNumber value={displayResult.grandTotal} currency={currency}/></span></div>
             </div>
             <div className="pdf-panel">
               <div className="sec-lbl" style={{marginBottom:".5rem"}}>Generate Documents</div>
