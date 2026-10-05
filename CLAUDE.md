@@ -135,17 +135,25 @@ All prices are hardcoded constants. When prices change, update `calcQuote()` dir
 
 ### AutoCanteen
 
+Base prices from proposals 2275-6-9 and 2275-7-0 (2 October 2026), excluding RPI and VAT:
+
 | Item | Cost |
 |---|---|
-| AI Scanner + Printer | £4,400 / unit |
+| AI Scanner + Printer | £3,800 / unit |
 | Worldpay MID | £50 flat |
-| Weigh & Pay Scale | £660 / unit |
-| Installation (1st device) | £4,576 |
-| Installation (each additional) | £352 |
-| SLA Support | £660 / scanner |
-| Software (annual) | £5,280 / scanner |
-| Weigh & Pay Software (annual) | £440 / unit |
-| Worldpay PED (annual) | £116.52 |
+| Weigh & Pay Scale | £600 / unit |
+| Installation (1st device) | £4,160 |
+| Installation (each additional) | £320 |
+| SLA Support | £600 / scanner |
+| Scanner Licence & Support | £4,560 / scanner / year |
+| Weigh & Pay Licence & Support | £400 / unit / year |
+| Worldpay PED | £116.52 / scanner / year |
+
+AutoCanteen has a payment-option step and a summary toggle. Both options cover a 36-month licence and support term:
+
+- **Annual:** quote the first year and show Years 2 and 3 separately. Apply a single 10% RPI uplift to AutoCanteen hardware, installation, SLA support and first-year licences. Years 2 and 3 each apply 10% to the two licence lines only. Worldpay and the separate Compass implementation fee are excluded from RPI. RPI is recalculated when eligible line amounts are customized.
+- **Upfront:** charge three years of licence/support and PED rental in the `LicenceSupport` section, with no RPI. Show `Total Upfront Cost` and omit Capex/Opex from the screen, both PDFs and Excel. Use upfront/36-month wording throughout the exports.
+- Customizations are kept separately for the two payment options. Excel formulas retain the RPI base-line references and the later-year calculation.
 
 ### Deligo
 

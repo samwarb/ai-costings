@@ -32,16 +32,17 @@ const EMAILJS_PUBLIC_KEY  = "xqcop60IMiHuzOz2y";
 const SECTORS = ["Compass One","Chartwells","Compass Ireland","B&I","RA","Levy"];
 
 function getSteps(supplier) {
+  if (supplier === "AUTOCANTEEN") return ["supplier","quantities","payment","sme","siteinfo","summary"];
   return supplier === "DELIGO"
     ? ["supplier","t2e","quantities","sme","siteinfo","summary"]
     : ["supplier","quantities","sme","siteinfo","summary"];
 }
 
-function calcQuote({ supplier, scanners, weighPays, smeDays, t2eExisting, additionalScreens, receiptPrinters, eduSubscription, mobDays, wbhDays, currency = "GBP" }) {
+function calcQuote({ supplier, scanners, weighPays, smeDays, t2eExisting, additionalScreens, receiptPrinters, eduSubscription, mobDays, wbhDays, currency = "GBP", paymentPlan = "annual" }) {
   const B = [];
-  const add = (section, label, unitCost, qty) => {
+  const add = (section, label, unitCost, qty, options = {}) => {
     const cost = unitCost * qty;
-    B.push({ sectionId: section, section, label, unitCost, qty, cost });
+    B.push({ sectionId: section, section, label, unitCost, qty, cost, ...options });
     return cost;
   };
   if (supplier === "VISION_CHECKOUT") {
@@ -56,15 +57,21 @@ function calcQuote({ supplier, scanners, weighPays, smeDays, t2eExisting, additi
     add("Annual","Worldpay PED Rental & Support",116.52,scanners);
   }
   if (supplier === "AUTOCANTEEN") {
-    add("Hardware","AI Scanner & Receipt Printer",4400,scanners);
+    const upfront = paymentPlan === "upfront";
+    const termYears = upfront ? 3 : 1;
+    const licenceSection = upfront ? "LicenceSupport" : "Annual";
+    const licenceLabel = upfront ? "Licence & Support Costs (36 months)" : "Annual (Year 1)";
+    const eligible = { rpiEligible: true };
+    const licence = { ...eligible, section: licenceLabel };
+    add("Hardware","AI Scanner & Receipt Printer",3800,scanners,eligible);
     add("Hardware","Worldpay Omni-Channel MID",50,1);
-    if (weighPays>0) add("Hardware","Weigh & Pay Scale",660,weighPays);
-    add("Installation","Site Survey, Config, Install & Training (1st Device)",4576,1);
-    if (scanners>1) add("Installation","Config & Install — Additional Scanner",352,scanners-1);
-    add("Installation","Hardware Support with SLA",660,scanners);
-    add("Annual","Support & Software License — Scanner",5280,scanners);
-    if (weighPays>0) add("Annual","Support & Software License — Weigh & Pay",440,weighPays);
-    add("Annual","Worldpay PED Rental & Support",116.52,scanners);
+    if (weighPays>0) add("Hardware","Weigh & Pay Scale",600,weighPays,eligible);
+    add("Installation","Site Survey, Config, Install & Training (1st Device)",4160,1,eligible);
+    if (scanners>1) add("Installation","Config & Install — Additional Scanner",320,scanners-1,eligible);
+    add("Installation","Hardware Support with SLA",600,scanners,eligible);
+    add(licenceSection,upfront ? "Scanner Licence & Support (36 months)" : "Scanner Licence & Support",4560*termYears,scanners,licence);
+    if (weighPays>0) add(licenceSection,upfront ? "Weigh & Pay Licence & Support (36 months)" : "Weigh & Pay Licence & Support",400*termYears,weighPays,licence);
+    add(licenceSection,upfront ? "Worldpay PED Rental & Support (36 months)" : "Worldpay PED Rental & Support",116.52*termYears,scanners,{section:licenceLabel});
   }
   if (supplier === "DELIGO") {
     // EUR supplier prices from Pricing changes. GBP retains the existing quote rates.
@@ -100,10 +107,50 @@ function calcQuote({ supplier, scanners, weighPays, smeDays, t2eExisting, additi
 
   const impl = 1250 + smeDays * 300;
   B.push({ sectionId:"Implementation", section:"Implementation", label:"Implementation Fee", unitCost:impl, qty:1, cost:impl });
-  return buildCustomResult(B);
+  return buildCustomResult(B, null, { supplier, paymentPlan });
 }
 
-function buildCustomResult(breakdown, contingencyOverride = null) {
+function withAutoCanteenRpi(breakdown, context) {
+  if (context.supplier !== "AUTOCANTEEN") return breakdown;
+  const items = breakdown.filter(item => !item.rpiCharge);
+  if (context.paymentPlan !== "annual") return items;
+  const base = items.filter(item => item.rpiEligible).reduce((sum, item) => sum + item.cost, 0);
+  if (!base) return items;
+  const rpi = Number((base * 0.1).toFixed(2));
+  const installation = items.find(item => (item.sectionId || item.section) === "Installation");
+  const insertAt = items.findIndex(item => (item.sectionId || item.section) === "Annual");
+  items.splice(insertAt < 0 ? items.length : insertAt, 0, {
+    sectionId: "Installation", section: installation?.section || "Installation",
+    label: "MSA RPI 10% indexation from 2023 (Year 1)",
+    unitCost: rpi, qty: 1, cost: rpi, rpiCharge: true,
+  });
+  return items;
+}
+
+function isUpfrontAutoCanteen(result) {
+  return result.supplier === "AUTOCANTEEN" && result.paymentPlan === "upfront";
+}
+
+function quoteTotalLabel(result) {
+  if (isUpfrontAutoCanteen(result)) return "Total Upfront Cost";
+  return result.supplier === "AUTOCANTEEN" ? "Total Year 1 Project Cost" : "Total Project Cost";
+}
+
+function quotePaymentText(result, currency = "GBP") {
+  if (result.supplier !== "AUTOCANTEEN") return "";
+  if (isUpfrontAutoCanteen(result)) return "Upfront payment: 36-month licence and support costs paid in full. No RPI indexation.";
+  return `Annual payment: 36-month licence term. Year 1 includes 10% RPI on AutoCanteen hardware, installation, support and licences. Years 2 and 3: ${fmt(result.renewalAnnualTotal, currency)} each, including 10% RPI on licences.`;
+}
+
+function quoteNotice(result) {
+  const base = "This costing is a close working guide subject to site surveys before a final cost can be confirmed.\nExclusions: Data points · Power supply · Menu build & marketing · Strip & fit out.\nAll prices exc. VAT.";
+  if (isUpfrontAutoCanteen(result)) return base + " Upfront payment for a 36-month term; no RPI indexation.";
+  if (result.supplier === "AUTOCANTEEN") return base + " 10% RPI indexation applies to the annual payment option only.";
+  return base + " Annual support costs subject to increase in line with the RPI index.";
+}
+
+function buildCustomResult(breakdown, contingencyOverride = null, context = {}) {
+  breakdown = withAutoCanteenRpi(breakdown, context);
   const sectionOrder = [];
   const sectionLabels = {};
   const sectionTotals = breakdown.reduce((acc, item) => {
@@ -119,8 +166,15 @@ function buildCustomResult(breakdown, contingencyOverride = null) {
   const subtotal = Object.values(sectionTotals).reduce((sum, value) => sum + value, 0);
   const defaultContingency = subtotal * 0.025;
   const contingency = contingencyOverride === null ? defaultContingency : contingencyOverride;
+  const annualItems = breakdown.filter(item => (item.sectionId || item.section) === "Annual");
+  const renewalBase = annualItems.reduce((sum, item) => sum + item.cost, 0);
+  const renewalRpiBase = annualItems.filter(item => item.rpiEligible).reduce((sum, item) => sum + item.cost, 0);
+  const renewalAnnualTotal = renewalBase + Number((renewalRpiBase * 0.1).toFixed(2));
 
   return {
+    supplier: context.supplier,
+    paymentPlan: context.paymentPlan,
+    renewalAnnualTotal,
     breakdown,
     sectionOrder,
     sectionLabels,
@@ -278,7 +332,20 @@ async function makeExcelQuote({ siteInfo, supplier, result, currency = "GBP" }) 
   }
 
   let rowNumber = 16;
+  const paymentText = quotePaymentText(result, currency);
+  if (paymentText) {
+    mergeText(`A${rowNumber}:H${rowNumber}`, paymentText, {
+      font: { name: "Aptos", size: 10, bold: true, color: { argb: toArgb(bodyText) } },
+      alignment: { horizontal: "left", vertical: "center", wrapText: true },
+    });
+    sheet.getRow(rowNumber).height = isUpfrontAutoCanteen(result) ? 32 : 48;
+    rowNumber += 2;
+  }
   const sectionSubtotalRows = {};
+  const rpiBaseRows = [];
+  const annualRows = [];
+  const annualLicenceRows = [];
+  let rpiRow = null;
   result.sectionOrder.forEach((sectionId) => {
     const sectionLabel = result.sectionLabels[sectionId] || sectionId;
     const items = result.breakdown.filter((item) => (item.sectionId || item.section) === sectionId);
@@ -298,6 +365,12 @@ async function makeExcelQuote({ siteInfo, supplier, result, currency = "GBP" }) 
     items.forEach((item, itemIndex) => {
       const itemRow = rowNumber;
       itemRows.push(itemRow);
+      if (item.rpiEligible) rpiBaseRows.push(itemRow);
+      if (item.rpiCharge) rpiRow = itemRow;
+      if (sectionId === "Annual") {
+        annualRows.push(itemRow);
+        if (item.rpiEligible) annualLicenceRows.push(itemRow);
+      }
       sheet.mergeCells(`A${itemRow}:E${itemRow}`);
       sheet.getCell(`A${itemRow}`).value = `${item.label}${item.qty > 1 ? ` (x${item.qty})` : ""}`;
       sheet.getCell(`F${itemRow}`).value = item.qty;
@@ -335,6 +408,10 @@ async function makeExcelQuote({ siteInfo, supplier, result, currency = "GBP" }) 
     sheet.getCell(`H${subtotalRow}`).alignment = { horizontal: "right", vertical: "center" };
     rowNumber += 2;
   });
+  if (rpiRow !== null) {
+    setAmount(rpiRow, result.breakdown.find(item => item.rpiCharge).cost,
+      `=ROUND((${rpiBaseRows.map(row => `H${row}`).join("+") || "0"})*10%,2)`);
+  }
 
   const costSummaryBandRow = rowNumber;
   sheet.mergeCells(`A${costSummaryBandRow}:G${costSummaryBandRow}`);
@@ -386,23 +463,26 @@ async function makeExcelQuote({ siteInfo, supplier, result, currency = "GBP" }) 
 
   const { capexTotal, opexTotal } = getCostTypeTotals(result);
   const annualSummaryRow = costSummaryRows.Annual;
-  const capexRow = rowNumber;
-  sheet.mergeCells(`A${capexRow}:G${capexRow}`);
-  sheet.getCell(`A${capexRow}`).value = "Capex Costs";
-  setAmount(capexRow, capexTotal, annualSummaryRow ? `=H${summarySubtotalRow}-H${annualSummaryRow}` : `=H${summarySubtotalRow}`);
-  setRowStyle(capexRow, { fill: "#FFFFFF", font: { name: "Aptos", size: 11, color: { argb: toArgb(bodyText) } }, alignment: { horizontal: "left", vertical: "center" }, border: { bottom: lightBorder } });
-  sheet.getCell(`H${capexRow}`).alignment = { horizontal: "right", vertical: "center" };
-  rowNumber += 1;
+  if (!isUpfrontAutoCanteen(result)) {
+    const capexRow = rowNumber;
+    sheet.mergeCells(`A${capexRow}:G${capexRow}`);
+    sheet.getCell(`A${capexRow}`).value = "Capex Costs";
+    setAmount(capexRow, capexTotal, annualSummaryRow ? `=H${summarySubtotalRow}-H${annualSummaryRow}` : `=H${summarySubtotalRow}`);
+    setRowStyle(capexRow, { fill: "#FFFFFF", font: { name: "Aptos", size: 11, color: { argb: toArgb(bodyText) } }, alignment: { horizontal: "left", vertical: "center" }, border: { bottom: lightBorder } });
+    sheet.getCell(`H${capexRow}`).alignment = { horizontal: "right", vertical: "center" };
+    rowNumber += 1;
 
-  const opexRow = rowNumber;
-  sheet.mergeCells(`A${opexRow}:G${opexRow}`);
-  sheet.getCell(`A${opexRow}`).value = "Opex Costs";
-  setAmount(opexRow, opexTotal, annualSummaryRow ? `=H${annualSummaryRow}` : "=0");
-  setRowStyle(opexRow, { fill: "#FFFFFF", font: { name: "Aptos", size: 11, color: { argb: toArgb(bodyText) } }, alignment: { horizontal: "left", vertical: "center" }, border: { bottom: lightBorder } });
-  sheet.getCell(`H${opexRow}`).alignment = { horizontal: "right", vertical: "center" };
-  rowNumber += 1;
+    const opexRow = rowNumber;
+    sheet.mergeCells(`A${opexRow}:G${opexRow}`);
+    sheet.getCell(`A${opexRow}`).value = "Opex Costs";
+    setAmount(opexRow, opexTotal, annualSummaryRow ? `=H${annualSummaryRow}` : "=0");
+    setRowStyle(opexRow, { fill: "#FFFFFF", font: { name: "Aptos", size: 11, color: { argb: toArgb(bodyText) } }, alignment: { horizontal: "left", vertical: "center" }, border: { bottom: lightBorder } });
+    sheet.getCell(`H${opexRow}`).alignment = { horizontal: "right", vertical: "center" };
+    rowNumber += 1;
+  }
 
-  const contingencyRateRow = rowNumber + 2;
+  const hasRenewals = result.supplier === "AUTOCANTEEN" && !isUpfrontAutoCanteen(result);
+  const contingencyRateRow = rowNumber + (hasRenewals ? 3 : 2);
   const contingencyRow = rowNumber;
   sheet.mergeCells(`A${contingencyRow}:G${contingencyRow}`);
   sheet.getCell(`A${contingencyRow}`).value = "Contingency";
@@ -414,7 +494,7 @@ async function makeExcelQuote({ siteInfo, supplier, result, currency = "GBP" }) 
 
   const totalRow = rowNumber;
   sheet.mergeCells(`A${totalRow}:G${totalRow}`);
-  sheet.getCell(`A${totalRow}`).value = "Total Project Cost";
+  sheet.getCell(`A${totalRow}`).value = quoteTotalLabel(result);
   setAmount(totalRow, result.grandTotal, `=H${summarySubtotalRow}+H${contingencyRow}`, { name: "Aptos", size: 11, bold: true, color: { argb: "FFFFFFFF" } });
   setRowStyle(totalRow, {
     fill: supplierColour,
@@ -424,6 +504,16 @@ async function makeExcelQuote({ siteInfo, supplier, result, currency = "GBP" }) 
   sheet.getCell(`H${totalRow}`).alignment = { horizontal: "right", vertical: "center" };
   sheet.getRow(totalRow).height = 24;
   rowNumber += 1;
+
+  if (hasRenewals) {
+    sheet.mergeCells(`A${rowNumber}:G${rowNumber}`);
+    sheet.getCell(`A${rowNumber}`).value = "Years 2 & 3 (each, excluding contingency)";
+    setAmount(rowNumber, result.renewalAnnualTotal,
+      `=(${annualRows.map(row => `H${row}`).join("+") || "0"})+ROUND((${annualLicenceRows.map(row => `H${row}`).join("+") || "0"})*10%,2)`);
+    setRowStyle(rowNumber, { font: { name: "Aptos", size: 11, color: { argb: toArgb(bodyText) } }, alignment: { horizontal: "left", vertical: "center" } });
+    sheet.getCell(`H${rowNumber}`).alignment = { horizontal: "right", vertical: "center" };
+    rowNumber += 1;
+  }
 
   sheet.mergeCells(`A${contingencyRateRow}:G${contingencyRateRow}`);
   sheet.getCell(`A${contingencyRateRow}`).value = result.contingency === result.defaultContingency ? "Contingency Rate (input)" : "Contingency Rate (custom)";
@@ -451,7 +541,7 @@ async function makeExcelQuote({ siteInfo, supplier, result, currency = "GBP" }) 
   sheet.getRow(noticeTitleRow).height = 20;
   const noticeBodyRow = noticeTitleRow + 1;
   sheet.mergeCells(`A${noticeBodyRow}:H${noticeBodyRow + 2}`);
-  sheet.getCell(`A${noticeBodyRow}`).value = "This costing is a close working guide subject to site surveys before a final cost can be confirmed.\nExclusions: Data points · Power supply · Menu build & marketing · Strip & fit out.\nAll prices exc. VAT. Annual support costs subject to increase in line with the RPI index.";
+  sheet.getCell(`A${noticeBodyRow}`).value = quoteNotice(result);
   setRowStyle(noticeBodyRow, {
     fill: "#FFF7E1",
     font: { name: "Aptos", size: 10, color: { argb: "FFB45309" } },
@@ -566,6 +656,14 @@ function makeSummaryPDF({ siteInfo, supplier, result, scanners, weighPays, t2eEx
 
   y += 46;
 
+  const paymentText = quotePaymentText(result, currency);
+  if (paymentText) {
+    doc.setFont("helvetica","bold"); doc.setFontSize(8); doc.setTextColor(55,65,81);
+    const paymentLines = doc.splitTextToSize(paymentText, W-26);
+    doc.text(paymentLines, 13, y);
+    y += paymentLines.length * 4 + 4;
+  }
+
   const ensureSummarySpace = (heightNeeded) => {
     if (y + heightNeeded > 274) {
       doc.addPage();
@@ -614,10 +712,10 @@ function makeSummaryPDF({ siteInfo, supplier, result, scanners, weighPays, t2eEx
     y += 7;
   });
 
-  [
+  (isUpfrontAutoCanteen(result) ? [] : [
     ["Capex Costs", capexTotal],
     ["Opex Costs", opexTotal],
-  ].forEach(([label, value], i) => {
+  ]).forEach(([label, value], i) => {
     if ((sections.length + i)%2===0) { doc.setFillColor(249,250,251); doc.rect(10,y-1,W-20,7,"F"); }
     doc.setTextColor(17,24,39); doc.setFont("helvetica","bold"); doc.setFontSize(8.8);
     doc.text(label, 14, y+4.5);
@@ -640,9 +738,16 @@ function makeSummaryPDF({ siteInfo, supplier, result, scanners, weighPays, t2eEx
   doc.setFillColor(sr,sg,sb);
   doc.rect(10,y,W-20,11,"F");
   doc.setTextColor(255,255,255); doc.setFont("helvetica","bold"); doc.setFontSize(11.5);
-  doc.text("Total Project Cost", 14, y+7.5);
+  doc.text(quoteTotalLabel(result), 14, y+7.5);
   doc.text(formatMoney(result.grandTotal), W-13, y+7.5, {align:"right"});
   y += 16;
+  if (result.supplier === "AUTOCANTEEN" && !isUpfrontAutoCanteen(result)) {
+    ensureSummarySpace(14);
+    doc.setTextColor(55,65,81); doc.setFont("helvetica","normal"); doc.setFontSize(9);
+    doc.text("Years 2 & 3 (each, excluding contingency)", 14, y);
+    doc.text(formatMoney(result.renewalAnnualTotal), W-13, y, {align:"right"});
+    y += 10;
+  }
 
   // Notice box
   ensureSummarySpace(34);
@@ -653,7 +758,7 @@ function makeSummaryPDF({ siteInfo, supplier, result, scanners, weighPays, t2eEx
   doc.setFontSize(7.5); doc.setFont("helvetica","bold"); doc.setTextColor(146,64,14);
   doc.text("IMPORTANT NOTICE", 14, y+6);
   doc.setFont("helvetica","normal"); doc.setTextColor(120,53,15); doc.setFontSize(7.5);
-const notice = "This costing is a close working guide subject to site surveys before a final cost can be confirmed.\nExclusions: Data points · Power supply · Menu build & marketing · Strip & fit out.\nAll prices exc. VAT. Annual support costs subject to increase in line with the RPI index.";
+  const notice = quoteNotice(result);
   const lines = doc.splitTextToSize(notice, W-30);
   doc.text(lines, 14, y+12);
 
@@ -682,7 +787,13 @@ function makeBreakdownPDF({ siteInfo, supplier, result, scanners, weighPays, t2e
     doc.setFillColor(17,24,39);
     doc.rect(0,H-11,W,11,"F");
     doc.setTextColor(107,114,128); doc.setFontSize(6.5); doc.setFont("helvetica","normal");
-    doc.text("Compass UK&I Digital  |  This costing is subject to site survey before a final cost is confirmed. All prices exc. VAT. Annual costs subject to RPI.", W/2, H-4.5, {align:"center"});
+    const paymentNotice = result.supplier === "AUTOCANTEEN"
+      ? (isUpfrontAutoCanteen(result) ? " Upfront payment (36 months). No RPI indexation." : " Annual payment (36 months). 10% RPI included as shown.")
+      : " Annual costs subject to RPI.";
+    const footer = result.supplier === "AUTOCANTEEN"
+      ? "Compass UK&I Digital  |  Subject to site survey. All prices exc. VAT." + paymentNotice
+      : "Compass UK&I Digital  |  This costing is subject to site survey before a final cost is confirmed. All prices exc. VAT. Annual costs subject to RPI.";
+    doc.text(footer, W/2, H-4.5, {align:"center"});
   };
 
   // Header
@@ -717,6 +828,13 @@ function makeBreakdownPDF({ siteInfo, supplier, result, scanners, weighPays, t2e
     mx += 46;
   });
   y += 13;
+  const paymentText = quotePaymentText(result, currency);
+  if (paymentText) {
+    const paymentLines = doc.splitTextToSize(paymentText, W-24);
+    doc.setFont("helvetica","bold"); doc.setFontSize(8);
+    doc.text(paymentLines, 12, y);
+    y += paymentLines.length * 4 + 4;
+  }
 
   // Table header
   const cols = [
@@ -725,7 +843,7 @@ function makeBreakdownPDF({ siteInfo, supplier, result, scanners, weighPays, t2e
     {label:"Qty",          x:148, w:16,  align:"center"},
     {label:"Total",        x:166, w:32,  align:"right"},
     {label:"Section",      x:200, w:34,  align:"left"},
-    {label:"Annual (Yr 1)",x:236, w:34,  align:"right"},
+    {label:result.supplier === "AUTOCANTEEN" ? (isUpfrontAutoCanteen(result) ? "Upfront Cost" : "Line Total") : "Annual (Yr 1)",x:236, w:34,  align:"right"},
   ];
 
   doc.setFillColor(55,65,81);
@@ -744,6 +862,7 @@ function makeBreakdownPDF({ siteInfo, supplier, result, scanners, weighPays, t2e
     if (!items.length) return;
 
     // Section header row
+    if (y + 30 > footerTop - 2) { drawFooter(); doc.addPage(); y = 15; }
     doc.setFillColor(sr,sg,sb);
     doc.rect(10,y-1,W-20,7,"F");
     doc.setTextColor(255,255,255); doc.setFont("helvetica","bold"); doc.setFontSize(8);
@@ -751,19 +870,25 @@ function makeBreakdownPDF({ siteInfo, supplier, result, scanners, weighPays, t2e
     y += 8;
 
     items.forEach((item, i) => {
-      if (y > H-42) { drawFooter(); doc.addPage(); y = 15; }
-      if (i%2===0) { doc.setFillColor(249,250,251); doc.rect(10,y-1,W-20,7,"F"); }
       doc.setTextColor(55,65,81); doc.setFont("helvetica","normal"); doc.setFontSize(8.5);
       const labelText = item.label + (item.qty > 1 ? ` (x${item.qty})` : "");
-      doc.text(labelText, 12, y+4);
+      const labelLines = doc.splitTextToSize(labelText, 104);
+      const sectionLines = doc.splitTextToSize(sec, 31);
+      const rowHeight = Math.max(7, Math.max(labelLines.length, sectionLines.length) * 4 + 3);
+      if (y + rowHeight + (i === items.length - 1 ? 10 : 0) > footerTop - 2) {
+        drawFooter(); doc.addPage(); y = 15;
+        doc.setTextColor(55,65,81); doc.setFont("helvetica","normal"); doc.setFontSize(8.5);
+      }
+      if (i%2===0) { doc.setFillColor(249,250,251); doc.rect(10,y-1,W-20,rowHeight,"F"); }
+      doc.text(labelLines, 12, y+4);
       doc.text(symbol+fmtN(item.unitCost), 145, y+4, {align:"right"});
       doc.text(String(item.qty), 156, y+4, {align:"center"});
       doc.setFont("helvetica","bold");
       doc.text(symbol+fmtN(item.cost), 197, y+4, {align:"right"});
       doc.setFont("helvetica","normal");
-      doc.text(sec, 202, y+4);
+      doc.text(sectionLines, 202, y+4);
       doc.text(symbol+fmtN(item.cost), W-11, y+4, {align:"right"});
-      y += 7;
+      y += rowHeight;
     });
 
     // Subtotal
@@ -793,21 +918,24 @@ function makeBreakdownPDF({ siteInfo, supplier, result, scanners, weighPays, t2e
 
   doc.roundedRect(148,y,W-158,boxHeight,2,2,"D");
   doc.setFont("helvetica","bold"); doc.setTextColor(17,24,39);
-  doc.text("Capex Costs", 152, y+8);
-  doc.text(symbol+fmtN(capexTotal), W-12, y+8, {align:"right"});
-  doc.text("Opex Costs", 152, y+16);
-  doc.text(symbol+fmtN(opexTotal), W-12, y+16, {align:"right"});
+  if (!isUpfrontAutoCanteen(result)) {
+    doc.text("Capex Costs", 152, y+8);
+    doc.text(symbol+fmtN(capexTotal), W-12, y+8, {align:"right"});
+    doc.text("Opex Costs", 152, y+16);
+    doc.text(symbol+fmtN(opexTotal), W-12, y+16, {align:"right"});
+  }
   doc.setFont("helvetica","normal"); doc.setTextColor(107,114,128);
-  doc.text("Sub Total", 152, y+24);
-  doc.text(symbol+fmtN(result.subtotal), W-12, y+24, {align:"right"});
-  doc.text("Contingency", 152, y+32);
-  doc.text(symbol+fmtN(result.contingency), W-12, y+32, {align:"right"});
+  const subtotalY = isUpfrontAutoCanteen(result) ? 8 : 24;
+  doc.text("Sub Total", 152, y+subtotalY);
+  doc.text(symbol+fmtN(result.subtotal), W-12, y+subtotalY, {align:"right"});
+  doc.text("Contingency", 152, y+subtotalY+8);
+  doc.text(symbol+fmtN(result.contingency), W-12, y+subtotalY+8, {align:"right"});
 
   y += boxHeight + 3;
   doc.setFillColor(sr,sg,sb);
   doc.rect(10,y,W-20,11,"F");
   doc.setTextColor(255,255,255); doc.setFont("helvetica","bold"); doc.setFontSize(12);
-  doc.text("TOTAL PROJECT COST", 14, y+7.5);
+  doc.text(quoteTotalLabel(result).toUpperCase(), 14, y+7.5);
   doc.text(formatMoney(result.grandTotal), W-13, y+7.5, {align:"right"});
 
   drawFooter();
@@ -854,8 +982,10 @@ export default function App() {
   const [emailError,setEmailError]=useState("");
   const [isCustomizing,setIsCustomizing]=useState(false);
   const [quoteCurrency,setQuoteCurrency]=useState("GBP");
+  const [paymentPlan,setPaymentPlan]=useState("annual");
   const [customQuotes,setCustomQuotes]=useState({});
   const currency = supplier === "DELIGO" ? quoteCurrency : "GBP";
+  const quoteKey = supplier === "AUTOCANTEEN" ? `${currency}:${paymentPlan}` : currency;
   const formatMoney = (value) => fmt(value, currency);
 
   const steps=getSteps(supplier);
@@ -864,31 +994,32 @@ export default function App() {
   const nav=(next)=>{setAnimIn(false);setTimeout(()=>{setStep(next);setAnimIn(true);},180);};
   const goNext=()=>nav(steps[si+1]);
   const goBack=()=>nav(steps[si-1]);
-  const reset=()=>{setAnimIn(false);setTimeout(()=>{setSupplier(null);setT2eExisting(null);setScanners(1);setWeighPays(0);setAdditionalScreens(0);setReceiptPrinters(0);setEduSubscription(false);setMobDays(0);setWbhDays(0);setSmeDays(1);setSiteName("");setUnitNumber("");setContactName("");setAddress("");setGoLive("");setSector("");setSectorContact("");setClientName("");setEmailStatus("idle");setEmailError("");setQuoteCurrency("GBP");setCustomQuotes({});setStep("supplier");setAnimIn(true);},180);};
+  const reset=()=>{setAnimIn(false);setTimeout(()=>{setSupplier(null);setT2eExisting(null);setScanners(1);setWeighPays(0);setAdditionalScreens(0);setReceiptPrinters(0);setEduSubscription(false);setMobDays(0);setWbhDays(0);setSmeDays(1);setSiteName("");setUnitNumber("");setContactName("");setAddress("");setGoLive("");setSector("");setSectorContact("");setClientName("");setEmailStatus("idle");setEmailError("");setQuoteCurrency("GBP");setPaymentPlan("annual");setCustomQuotes({});setStep("supplier");setAnimIn(true);},180);};
 
   const result = useMemo(
-    () => step==="summary"?calcQuote({supplier,scanners,weighPays,smeDays,t2eExisting,additionalScreens,receiptPrinters,eduSubscription,mobDays,wbhDays,currency}):null,
-    [step, supplier, scanners, weighPays, smeDays, t2eExisting, additionalScreens, receiptPrinters, eduSubscription, mobDays, wbhDays, currency]
+    () => step==="summary"?calcQuote({supplier,scanners,weighPays,smeDays,t2eExisting,additionalScreens,receiptPrinters,eduSubscription,mobDays,wbhDays,currency,paymentPlan}):null,
+    [step, supplier, scanners, weighPays, smeDays, t2eExisting, additionalScreens, receiptPrinters, eduSubscription, mobDays, wbhDays, currency, paymentPlan]
   );
   useEffect(()=>{
     setCustomQuotes({});
     setIsCustomizing(false);
   },[step, supplier, scanners, weighPays, smeDays, t2eExisting, additionalScreens, receiptPrinters, eduSubscription, mobDays, wbhDays]);
 
-  const customBreakdown = customQuotes[currency]?.breakdown ?? result?.breakdown ?? [];
-  const customContingency = customQuotes[currency]?.contingency ?? null;
+  const customBreakdown = customQuotes[quoteKey]?.breakdown ?? result?.breakdown ?? [];
+  const customContingency = customQuotes[quoteKey]?.contingency ?? null;
   const setCustomBreakdown = (update) => {
     setCustomQuotes(current => {
-      const quote = current[currency] || { breakdown: result.breakdown, contingency: null };
-      return { ...current, [currency]: { ...quote, breakdown: typeof update === "function" ? update(quote.breakdown) : update } };
+      const quote = current[quoteKey] || { breakdown: result.breakdown, contingency: null };
+      const breakdown = typeof update === "function" ? update(quote.breakdown) : update;
+      return { ...current, [quoteKey]: { ...quote, breakdown: withAutoCanteenRpi(breakdown, result) } };
     });
   };
   const setCustomContingency = (value) => {
-    setCustomQuotes(current => ({ ...current, [currency]: { breakdown: current[currency]?.breakdown ?? result.breakdown, contingency: value } }));
+    setCustomQuotes(current => ({ ...current, [quoteKey]: { breakdown: current[quoteKey]?.breakdown ?? result.breakdown, contingency: value } }));
   };
   const displayResult = useMemo(
-    ()=> step==="summary" && customQuotes[currency] ? buildCustomResult(customQuotes[currency].breakdown, customQuotes[currency].contingency) : result,
-    [step, customQuotes, currency, result]
+    ()=> step==="summary" && customQuotes[quoteKey] ? buildCustomResult(customQuotes[quoteKey].breakdown, customQuotes[quoteKey].contingency, result) : result,
+    [step, customQuotes, quoteKey, result]
   );
   const costTypeTotals = displayResult ? getCostTypeTotals(displayResult) : { capexTotal: 0, opexTotal: 0 };
   const siteInfo={siteName,unitNumber,clientName,contactName,address,goLive,sector,sectorContact};
@@ -1160,7 +1291,7 @@ export default function App() {
               <div className="sec-lbl">Unit quantities</div>
               {[
                 {val:scanners,set:setScanners,min:1,lbl:"AI Scanners",sub:supplier==="VISION_CHECKOUT"?"AI Scanner & Base incl. Receipt Printer":supplier==="AUTOCANTEEN"?"AI Scanner & Receipt Printer":"AI Scanner"},
-                {val:weighPays,set:setWeighPays,min:0,lbl:"Weigh & Pay Scales",sub:"£"+(supplier==="VISION_CHECKOUT"?"750":supplier==="AUTOCANTEEN"?"660":"695")+" per unit"},
+                {val:weighPays,set:setWeighPays,min:0,lbl:"Weigh & Pay Scales",sub:"£"+(supplier==="VISION_CHECKOUT"?"750":supplier==="AUTOCANTEEN"?"600":"695")+" per unit"},
               ].map((r,i)=>(<div className="qty-row" key={i}><div className="qty-lbl">{r.lbl}<small>{r.sub}</small></div><div className="qty-ctrl"><button className="qty-btn" disabled={r.val<=r.min} onClick={()=>r.set(Math.max(r.min,r.val-1))}>−</button><span className="qty-val" style={{color:sc}}>{r.val}</span><button className="qty-btn" onClick={()=>r.set(r.val+1)}>+</button></div></div>))}
               {supplier==="DELIGO"&&(<>
                 {[
@@ -1177,6 +1308,25 @@ export default function App() {
                   ))}
                 </div>
               </>)}
+            </div>
+            <div className="btn-row"><button className="btn-g" onClick={goBack}>← Back</button><button className="btn-p" style={{background:sc,color:"#fff"}} onClick={goNext}>Continue →</button></div>
+          </>)}
+
+          {step==="payment"&&(<>
+            <div className="ttl">Payment option</div>
+            <div className="sub">AutoCanteen · 36-month licence and support term</div>
+            <div className="card">
+              <div className="t2e-grid">
+                {[
+                  {value:"annual",label:"Pay annually",description:"Spread licence and support payments over three years. 10% RPI indexation applies."},
+                  {value:"upfront",label:"Pay upfront",description:"Pay the full 36-month licence and support costs upfront. No RPI indexation; one total cost."},
+                ].map(option=>(
+                  <button key={option.value} type="button" className="t2e-card" aria-pressed={paymentPlan===option.value} style={{textAlign:"left",font:"inherit",borderColor:paymentPlan===option.value?sc:undefined,background:paymentPlan===option.value?sc+"0d":undefined}} onClick={()=>setPaymentPlan(option.value)}>
+                    <div className="t2e-ttl" style={{color:paymentPlan===option.value?sc:"#111827"}}>{option.label}</div>
+                    <div className="t2e-desc">{option.description}</div>
+                  </button>
+                ))}
+              </div>
             </div>
             <div className="btn-row"><button className="btn-g" onClick={goBack}>← Back</button><button className="btn-p" style={{background:sc,color:"#fff"}} onClick={goNext}>Continue →</button></div>
           </>)}
@@ -1241,6 +1391,16 @@ export default function App() {
             {supplier === "DELIGO" && currency === "EUR" && (
               <div className="currency-note">Euro supplier prices include standard shipping. Monthly subscriptions are shown as annual costs. Other charges use the agreed euro amounts.</div>
             )}
+            {supplier === "AUTOCANTEEN" && (
+              <div className="card">
+                <div className="currency-toggle" role="group" aria-label="AutoCanteen payment option">
+                  {[{value:"annual",label:"Pay annually"},{value:"upfront",label:"Pay upfront"}].map(option=>(
+                    <button key={option.value} type="button" className="currency-btn" aria-pressed={paymentPlan===option.value} onClick={()=>{setPaymentPlan(option.value);setIsCustomizing(false);}}>{option.label}</button>
+                  ))}
+                </div>
+                <div className="currency-note">{quotePaymentText(displayResult,currency)}</div>
+              </div>
+            )}
             <div className="card">
               <div className="btn-row" style={{marginBottom:"1rem"}}>
                 <button className="btn-g" onClick={()=>setIsCustomizing(v=>!v)}>
@@ -1282,6 +1442,7 @@ export default function App() {
                             <input
                               className="finp bk-edit-label"
                               value={customBreakdown[it.index].label}
+                              disabled={it.rpiCharge}
                               onChange={e=>updateCustomItem(it.index,"label",e.target.value)}
                             />
                             <input
@@ -1290,6 +1451,7 @@ export default function App() {
                               min="0"
                               step="1"
                               value={customBreakdown[it.index].qty}
+                              disabled={it.rpiCharge}
                               onChange={e=>updateCustomItem(it.index,"qty",e.target.value)}
                             />
                             <input
@@ -1299,9 +1461,10 @@ export default function App() {
                               min="0"
                               step="0.01"
                               value={customBreakdown[it.index].cost}
+                              disabled={it.rpiCharge}
                               onChange={e=>updateCustomItem(it.index,"cost",e.target.value)}
                             />
-                            <button className="mini-btn danger" onClick={()=>removeCustomItem(it.index)}>Remove</button>
+                            {!it.rpiCharge && <button className="mini-btn danger" onClick={()=>removeCustomItem(it.index)}>Remove</button>}
                           </div>
                         );
                       }
@@ -1316,9 +1479,11 @@ export default function App() {
                 <div className="t-row" key={sectionId}><span className="tl">{displayResult.sectionLabels[sectionId] || sectionId}</span><span className="ta">{formatMoney(displayResult.sectionTotals[sectionId] || 0)}</span></div>
               ))}
               <hr className="t-div"/>
-              <div className="t-row"><span className="tl">Capex Costs</span><span className="ta">{formatMoney(costTypeTotals.capexTotal)}</span></div>
-              <div className="t-row"><span className="tl">Opex Costs</span><span className="ta">{formatMoney(costTypeTotals.opexTotal)}</span></div>
-              <hr className="t-div"/>
+              {!isUpfrontAutoCanteen(displayResult) && (<>
+                <div className="t-row"><span className="tl">Capex Costs</span><span className="ta">{formatMoney(costTypeTotals.capexTotal)}</span></div>
+                <div className="t-row"><span className="tl">Opex Costs</span><span className="ta">{formatMoney(costTypeTotals.opexTotal)}</span></div>
+                <hr className="t-div"/>
+              </>)}
               <div className="t-row big"><span className="tl">Sub Total</span><span className="ta" style={{color:sc}}><AnimatedNumber value={displayResult.subtotal} currency={currency}/></span></div>
               <hr className="t-div"/>
               {isCustomizing ? (
@@ -1338,7 +1503,8 @@ export default function App() {
                 <div className="t-row"><span className="tl">Contingency</span><span className="ta">{formatMoney(displayResult.contingency)}</span></div>
               )}
               <hr className="t-div"/>
-              <div className="t-row big"><span className="tl">Total Project Cost</span><span className="ta" style={{color:sc}}><AnimatedNumber value={displayResult.grandTotal} currency={currency}/></span></div>
+              <div className="t-row big"><span className="tl">{quoteTotalLabel(displayResult)}</span><span className="ta" style={{color:sc}}><AnimatedNumber value={displayResult.grandTotal} currency={currency}/></span></div>
+              {supplier === "AUTOCANTEEN" && paymentPlan === "annual" && <div className="t-row"><span className="tl">Years 2 & 3 (each)</span><span className="ta">{formatMoney(displayResult.renewalAnnualTotal)}</span></div>}
             </div>
             <div className="pdf-panel">
               <div className="sec-lbl" style={{marginBottom:".5rem"}}>Generate Documents</div>
@@ -1371,7 +1537,7 @@ export default function App() {
               <button className="btn-g" onClick={goBack}>← Adjust</button>
               <button className="btn-g" onClick={reset}>Start Over</button>
             </div>
-            <div className="disc">* All figures exc. VAT. Annual costs indicative, billed per supplier agreement. Contingency applied to total project value.</div>
+            <div className="disc">* All figures exc. VAT. {supplier === "AUTOCANTEEN" ? (paymentPlan === "upfront" ? "Upfront payment covers the full 36-month licence and support term. No RPI indexation." : "Annual payment over a 36-month term; 10% RPI indexation included as shown.") : "Annual costs indicative, billed per supplier agreement."} Contingency applied to total project value.</div>
           </>)}
 
         </div>
