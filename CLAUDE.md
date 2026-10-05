@@ -155,6 +155,7 @@ AutoCanteen has a payment-option step and a summary toggle. Both options cover a
 - **Upfront:** charge three years of licence/support and PED rental in the `LicenceSupport` section, with no RPI. Show `Total Upfront Cost` and omit Capex/Opex from the screen, both PDFs and Excel. Use upfront/36-month wording throughout the exports.
 - Customizations are kept separately for the two payment options. The screen, both PDFs and Excel show an annual payment schedule with a separate RPI amount and payment total for Year 1, Year 2 and Year 3. Excel formulas retain the RPI base-line references: Year 1 includes hardware/installation/support/licences, while Years 2 and 3 reference licence lines only. Year 1 payment includes the quoted contingency; later-year payments exclude contingency.
 - The annual licence section is labelled `Annual`. AutoCanteen Excel and PDF filenames include `_Annual` or `_Upfront` to identify the selected payment option.
+- Excel also shows the Years 2 and 3 licence RPI and the payment total including it directly below the Annual section's base subtotal. These renewal-only rows are excluded from Year 1 costs, which already include the full Year 1 RPI under Installation.
 
 ### Deligo
 
