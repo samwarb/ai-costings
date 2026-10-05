@@ -153,7 +153,7 @@ AutoCanteen has a payment-option step and a summary toggle. Both options cover a
 
 - **Annual:** quote the first year and show Years 2 and 3 separately. Apply a single 10% RPI uplift to AutoCanteen hardware, installation, SLA support and first-year licences. Years 2 and 3 each apply 10% to the two licence lines only. Worldpay and the separate Compass implementation fee are excluded from RPI. RPI is recalculated when eligible line amounts are customized.
 - **Upfront:** charge three years of licence/support and PED rental in the `LicenceSupport` section, with no RPI. Show `Total Upfront Cost` and omit Capex/Opex from the screen, both PDFs and Excel. Use upfront/36-month wording throughout the exports.
-- Customizations are kept separately for the two payment options. Excel formulas retain the RPI base-line references and the later-year calculation.
+- Customizations are kept separately for the two payment options. The screen, both PDFs and Excel show an annual payment schedule with a separate RPI amount and payment total for Year 1, Year 2 and Year 3. Excel formulas retain the RPI base-line references: Year 1 includes hardware/installation/support/licences, while Years 2 and 3 reference licence lines only. Year 1 payment includes the quoted contingency; later-year payments exclude contingency.
 
 ### Deligo
 

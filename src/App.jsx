@@ -136,10 +136,19 @@ function quoteTotalLabel(result) {
   return result.supplier === "AUTOCANTEEN" ? "Total Year 1 Project Cost" : "Total Project Cost";
 }
 
-function quotePaymentText(result, currency = "GBP") {
+function quotePaymentText(result) {
   if (result.supplier !== "AUTOCANTEEN") return "";
   if (isUpfrontAutoCanteen(result)) return "Upfront payment: 36-month licence and support costs paid in full. No RPI indexation.";
-  return `Annual payment: 36-month licence term. Year 1 includes 10% RPI on AutoCanteen hardware, installation, support and licences. Years 2 and 3: ${fmt(result.renewalAnnualTotal, currency)} each, including 10% RPI on licences.`;
+  return "Annual payment: 36-month licence term. Year 1 RPI covers AutoCanteen hardware, installation, support and licences. Year 2 and Year 3 RPI covers licences only. The separate 10% charges are shown in the annual payment schedule.";
+}
+
+function annualPaymentSchedule(result) {
+  if (result.supplier !== "AUTOCANTEEN" || result.paymentPlan !== "annual") return [];
+  return [
+    { year: 1, rpi: result.year1Rpi, total: result.grandTotal },
+    { year: 2, rpi: result.renewalRpi, total: result.renewalAnnualTotal },
+    { year: 3, rpi: result.renewalRpi, total: result.renewalAnnualTotal },
+  ];
 }
 
 function quoteNotice(result) {
@@ -169,11 +178,14 @@ function buildCustomResult(breakdown, contingencyOverride = null, context = {}) 
   const annualItems = breakdown.filter(item => (item.sectionId || item.section) === "Annual");
   const renewalBase = annualItems.reduce((sum, item) => sum + item.cost, 0);
   const renewalRpiBase = annualItems.filter(item => item.rpiEligible).reduce((sum, item) => sum + item.cost, 0);
-  const renewalAnnualTotal = renewalBase + Number((renewalRpiBase * 0.1).toFixed(2));
+  const renewalRpi = Number((renewalRpiBase * 0.1).toFixed(2));
+  const renewalAnnualTotal = renewalBase + renewalRpi;
 
   return {
     supplier: context.supplier,
     paymentPlan: context.paymentPlan,
+    year1Rpi: breakdown.find(item => item.rpiCharge)?.cost || 0,
+    renewalRpi,
     renewalAnnualTotal,
     breakdown,
     sectionOrder,
@@ -482,7 +494,7 @@ async function makeExcelQuote({ siteInfo, supplier, result, currency = "GBP" }) 
   }
 
   const hasRenewals = result.supplier === "AUTOCANTEEN" && !isUpfrontAutoCanteen(result);
-  const contingencyRateRow = rowNumber + (hasRenewals ? 3 : 2);
+  const contingencyRateRow = rowNumber + 2;
   const contingencyRow = rowNumber;
   sheet.mergeCells(`A${contingencyRow}:G${contingencyRow}`);
   sheet.getCell(`A${contingencyRow}`).value = "Contingency";
@@ -505,16 +517,6 @@ async function makeExcelQuote({ siteInfo, supplier, result, currency = "GBP" }) 
   sheet.getRow(totalRow).height = 24;
   rowNumber += 1;
 
-  if (hasRenewals) {
-    sheet.mergeCells(`A${rowNumber}:G${rowNumber}`);
-    sheet.getCell(`A${rowNumber}`).value = "Years 2 & 3 (each, excluding contingency)";
-    setAmount(rowNumber, result.renewalAnnualTotal,
-      `=(${annualRows.map(row => `H${row}`).join("+") || "0"})+ROUND((${annualLicenceRows.map(row => `H${row}`).join("+") || "0"})*10%,2)`);
-    setRowStyle(rowNumber, { font: { name: "Aptos", size: 11, color: { argb: toArgb(bodyText) } }, alignment: { horizontal: "left", vertical: "center" } });
-    sheet.getCell(`H${rowNumber}`).alignment = { horizontal: "right", vertical: "center" };
-    rowNumber += 1;
-  }
-
   sheet.mergeCells(`A${contingencyRateRow}:G${contingencyRateRow}`);
   sheet.getCell(`A${contingencyRateRow}`).value = result.contingency === result.defaultContingency ? "Contingency Rate (input)" : "Contingency Rate (custom)";
   const rateCell = sheet.getCell(`H${contingencyRateRow}`);
@@ -528,6 +530,39 @@ async function makeExcelQuote({ siteInfo, supplier, result, currency = "GBP" }) 
   });
   rateCell.alignment = { horizontal: "right", vertical: "center" };
   rowNumber += 2;
+
+  if (hasRenewals) {
+    mergeText(`A${rowNumber}:H${rowNumber}`, "Annual payment schedule (36 months)");
+    setRowStyle(rowNumber, { fill: supplierColour, font: { name: "Aptos", size: 11, bold: true, color: { argb: "FFFFFFFF" } } });
+    sheet.getRow(rowNumber).height = 24;
+    rowNumber += 1;
+    mergeText(`A${rowNumber}:C${rowNumber}`, "Payment year");
+    mergeText(`D${rowNumber}:G${rowNumber}`, "MSA RPI 10% indexation");
+    sheet.getCell(`H${rowNumber}`).value = "Payment total";
+    setRowStyle(rowNumber, { fill: "#E5E7EB", font: { name: "Aptos", size: 10, bold: true, color: { argb: toArgb(navy) } } });
+    sheet.getCell(`H${rowNumber}`).alignment = { horizontal: "right", vertical: "center" };
+    rowNumber += 1;
+    const annualBaseFormula = annualRows.map(row => `H${row}`).join("+") || "0";
+    const renewalRpiFormula = `ROUND((${annualLicenceRows.map(row => `H${row}`).join("+") || "0"})*10%,2)`;
+    annualPaymentSchedule(result).forEach(payment => {
+      mergeText(`A${rowNumber}:C${rowNumber}`, `Year ${payment.year}`);
+      sheet.mergeCells(`D${rowNumber}:G${rowNumber}`);
+      const rpiCell = sheet.getCell(`D${rowNumber}`);
+      rpiCell.value = { formula: payment.year === 1 ? (rpiRow === null ? "0" : `H${rpiRow}`) : renewalRpiFormula, result: payment.rpi };
+      rpiCell.numFmt = currencyFormat;
+      setAmount(rowNumber, payment.total, payment.year === 1 ? `=H${totalRow}` : `=(${annualBaseFormula})+D${rowNumber}`);
+      setRowStyle(rowNumber, { fill: payment.year % 2 === 1 ? "#F8FAFC" : "#FFFFFF", font: { name: "Aptos", size: 11, color: { argb: toArgb(bodyText) } }, alignment: { horizontal: "left", vertical: "center" }, border: { bottom: lightBorder } });
+      rpiCell.alignment = { horizontal: "right", vertical: "center" };
+      sheet.getCell(`H${rowNumber}`).alignment = { horizontal: "right", vertical: "center" };
+      rowNumber += 1;
+    });
+    mergeText(`A${rowNumber}:H${rowNumber}`, "Year 1 payment includes contingency. Years 2 and 3 exclude contingency. RPI excludes Worldpay and the separate Compass implementation fee.", {
+      font: { name: "Aptos", size: 9, italic: true, color: { argb: toArgb(mutedText) } },
+      alignment: { horizontal: "left", vertical: "center", wrapText: true },
+    });
+    sheet.getRow(rowNumber).height = 30;
+    rowNumber += 2;
+  }
 
   const noticeTitleRow = rowNumber;
   sheet.mergeCells(`A${noticeTitleRow}:H${noticeTitleRow}`);
@@ -590,6 +625,35 @@ async function makeExcelQuote({ siteInfo, supplier, result, currency = "GBP" }) 
 }
 
 // ── PDF builders ─────────────────────────────────────────────────────────────
+function drawAnnualPaymentSchedule(doc, result, currency, { x, y, width, color }) {
+  const payments = annualPaymentSchedule(result);
+  if (!payments.length) return y;
+  doc.setFillColor(...color); doc.rect(x,y,width,8,"F");
+  doc.setTextColor(255,255,255); doc.setFont("helvetica","bold"); doc.setFontSize(10);
+  doc.text("Annual payment schedule (36 months)", x+3, y+5.5);
+  y += 8;
+  const rpiX = x + width * 0.62;
+  const totalX = x + width - 3;
+  doc.setFillColor(229,231,235); doc.rect(x,y,width,7,"F");
+  doc.setTextColor(17,24,39); doc.setFontSize(8.5);
+  doc.text("Payment year", x+3, y+4.8);
+  doc.text("MSA RPI 10% indexation", rpiX, y+4.8, {align:"right"});
+  doc.text("Payment total", totalX, y+4.8, {align:"right"});
+  y += 7;
+  payments.forEach(payment => {
+    if (payment.year % 2 === 1) { doc.setFillColor(249,250,251); doc.rect(x,y,width,8,"F"); }
+    doc.setFont("helvetica","normal"); doc.setFontSize(9); doc.setTextColor(55,65,81);
+    doc.text(`Year ${payment.year}`, x+3, y+5.2);
+    doc.text(fmt(payment.rpi,currency), rpiX, y+5.2, {align:"right"});
+    doc.text(fmt(payment.total,currency), totalX, y+5.2, {align:"right"});
+    y += 8;
+  });
+  doc.setFontSize(7.5); doc.setTextColor(107,114,128);
+  const note = doc.splitTextToSize("Year 1 payment includes contingency. Years 2 and 3 exclude contingency. RPI excludes Worldpay and the separate Compass implementation fee.", width-6);
+  doc.text(note, x+3, y+4);
+  return y + 4 + note.length * 3.5 + 4;
+}
+
 function makeSummaryPDF({ siteInfo, supplier, result, scanners, weighPays, t2eExisting, currency = "GBP" }) {
   const symbol = currencySymbol(currency);
   const formatMoney = (value) => fmt(value, currency);
@@ -742,11 +806,8 @@ function makeSummaryPDF({ siteInfo, supplier, result, scanners, weighPays, t2eEx
   doc.text(formatMoney(result.grandTotal), W-13, y+7.5, {align:"right"});
   y += 16;
   if (result.supplier === "AUTOCANTEEN" && !isUpfrontAutoCanteen(result)) {
-    ensureSummarySpace(14);
-    doc.setTextColor(55,65,81); doc.setFont("helvetica","normal"); doc.setFontSize(9);
-    doc.text("Years 2 & 3 (each, excluding contingency)", 14, y);
-    doc.text(formatMoney(result.renewalAnnualTotal), W-13, y, {align:"right"});
-    y += 10;
+    ensureSummarySpace(60);
+    y = drawAnnualPaymentSchedule(doc,result,currency,{x:10,y,width:W-20,color:[sr,sg,sb]});
   }
 
   // Notice box
@@ -937,6 +998,12 @@ function makeBreakdownPDF({ siteInfo, supplier, result, scanners, weighPays, t2e
   doc.setTextColor(255,255,255); doc.setFont("helvetica","bold"); doc.setFontSize(12);
   doc.text(quoteTotalLabel(result).toUpperCase(), 14, y+7.5);
   doc.text(formatMoney(result.grandTotal), W-13, y+7.5, {align:"right"});
+
+  if (annualPaymentSchedule(result).length) {
+    y += 15;
+    if (y + 60 > footerTop - 2) { drawFooter(); doc.addPage(); y = 15; }
+    y = drawAnnualPaymentSchedule(doc,result,currency,{x:10,y,width:W-20,color:[sr,sg,sb]});
+  }
 
   drawFooter();
 
@@ -1504,8 +1571,27 @@ export default function App() {
               )}
               <hr className="t-div"/>
               <div className="t-row big"><span className="tl">{quoteTotalLabel(displayResult)}</span><span className="ta" style={{color:sc}}><AnimatedNumber value={displayResult.grandTotal} currency={currency}/></span></div>
-              {supplier === "AUTOCANTEEN" && paymentPlan === "annual" && <div className="t-row"><span className="tl">Years 2 & 3 (each)</span><span className="ta">{formatMoney(displayResult.renewalAnnualTotal)}</span></div>}
             </div>
+            {annualPaymentSchedule(displayResult).length > 0 && (
+              <div className="card">
+                <div className="sec-lbl">Annual payment schedule (36 months)</div>
+                <table style={{width:"100%",borderCollapse:"collapse",fontSize:".85rem"}}>
+                  <thead><tr>
+                    <th style={{textAlign:"left",padding:".7rem 0"}}>Payment year</th>
+                    <th style={{textAlign:"right",padding:".7rem 0"}}>MSA RPI 10% indexation</th>
+                    <th style={{textAlign:"right",padding:".7rem 0"}}>Payment total</th>
+                  </tr></thead>
+                  <tbody>{annualPaymentSchedule(displayResult).map(payment=>(
+                    <tr key={payment.year} style={{borderTop:"1px solid #e5e7eb"}}>
+                      <td style={{padding:".7rem 0"}}>Year {payment.year}</td>
+                      <td style={{textAlign:"right",padding:".7rem 0"}}>{formatMoney(payment.rpi)}</td>
+                      <td style={{textAlign:"right",padding:".7rem 0"}}>{formatMoney(payment.total)}</td>
+                    </tr>
+                  ))}</tbody>
+                </table>
+                <div className="currency-note">Year 1 payment includes contingency. Years 2 and 3 exclude contingency. RPI excludes Worldpay and the separate Compass implementation fee.</div>
+              </div>
+            )}
             <div className="pdf-panel">
               <div className="sec-lbl" style={{marginBottom:".5rem"}}>Generate Documents</div>
               <div className="pdf-desc">Download a branded PDF or an Excel quote to your device.</div>
