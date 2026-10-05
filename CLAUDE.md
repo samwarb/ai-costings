@@ -156,6 +156,7 @@ AutoCanteen has a payment-option step and a summary toggle. Both options cover a
 - Customizations are kept separately for the two payment options. The screen, both PDFs and Excel show an annual payment schedule with a separate RPI amount and payment total for Year 1, Year 2 and Year 3. Excel formulas retain the RPI base-line references: Year 1 includes hardware/installation/support/licences, while Years 2 and 3 reference licence lines only. Year 1 payment includes the quoted contingency; later-year payments exclude contingency.
 - The annual licence section is labelled `Annual`. AutoCanteen Excel and PDF filenames include `_Annual` or `_Upfront` to identify the selected payment option.
 - Excel also shows the Years 2 and 3 licence RPI and the payment total including it directly below the Annual section's base subtotal. These renewal-only rows are excluded from Year 1 costs, which already include the full Year 1 RPI under Installation.
+- Annual Excel exports have a prominent `Total 36-Month Contract Cost` directly beneath the yearly payment schedule. Its formula sums the three payment totals, including their RPI and the Year 1 contingency, and recalculates when quote amounts are edited.
 
 ### Deligo
 
