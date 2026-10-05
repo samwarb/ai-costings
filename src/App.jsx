@@ -573,7 +573,9 @@ async function makeExcelQuote({ siteInfo, supplier, result, currency = "GBP" }) 
     rowNumber += 1;
     const annualBaseFormula = annualRows.map(row => `H${row}`).join("+") || "0";
     const renewalRpiFormula = annualRpiRow === null ? "0" : `H${annualRpiRow}`;
-    annualPaymentSchedule(result).forEach(payment => {
+    const payments = annualPaymentSchedule(result);
+    const firstPaymentRow = rowNumber;
+    payments.forEach(payment => {
       mergeText(`A${rowNumber}:C${rowNumber}`, `Year ${payment.year}`);
       sheet.mergeCells(`D${rowNumber}:G${rowNumber}`);
       const rpiCell = sheet.getCell(`D${rowNumber}`);
@@ -585,6 +587,17 @@ async function makeExcelQuote({ siteInfo, supplier, result, currency = "GBP" }) 
       sheet.getCell(`H${rowNumber}`).alignment = { horizontal: "right", vertical: "center" };
       rowNumber += 1;
     });
+    mergeText(`A${rowNumber}:G${rowNumber}`, "Total 36-Month Contract Cost");
+    setAmount(rowNumber, payments.reduce((sum, payment) => sum + payment.total, 0),
+      `=SUM(H${firstPaymentRow}:H${rowNumber - 1})`);
+    setRowStyle(rowNumber, {
+      fill: navy,
+      font: { name: "Aptos", size: 13, bold: true, color: { argb: "FFFFFFFF" } },
+      alignment: { horizontal: "left", vertical: "center" },
+    });
+    sheet.getCell(`H${rowNumber}`).alignment = { horizontal: "right", vertical: "center" };
+    sheet.getRow(rowNumber).height = 30;
+    rowNumber += 1;
     mergeText(`A${rowNumber}:H${rowNumber}`, "Year 1 payment includes contingency. Years 2 and 3 exclude contingency. RPI excludes Worldpay and the separate Compass implementation fee.", {
       font: { name: "Aptos", size: 9, italic: true, color: { argb: toArgb(mutedText) } },
       alignment: { horizontal: "left", vertical: "center", wrapText: true },
