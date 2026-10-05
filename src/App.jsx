@@ -60,7 +60,7 @@ function calcQuote({ supplier, scanners, weighPays, smeDays, t2eExisting, additi
     const upfront = paymentPlan === "upfront";
     const termYears = upfront ? 3 : 1;
     const licenceSection = upfront ? "LicenceSupport" : "Annual";
-    const licenceLabel = upfront ? "Licence & Support Costs (36 months)" : "Annual (Year 1)";
+    const licenceLabel = upfront ? "Licence & Support Costs (36 months)" : "Annual";
     const eligible = { rpiEligible: true };
     const licence = { ...eligible, section: licenceLabel };
     add("Hardware","AI Scanner & Receipt Printer",3800,scanners,eligible);
@@ -129,6 +129,11 @@ function withAutoCanteenRpi(breakdown, context) {
 
 function isUpfrontAutoCanteen(result) {
   return result.supplier === "AUTOCANTEEN" && result.paymentPlan === "upfront";
+}
+
+function quoteExportPaymentSuffix(result) {
+  if (result.supplier !== "AUTOCANTEEN") return "";
+  return isUpfrontAutoCanteen(result) ? "_Upfront" : "_Annual";
 }
 
 function quoteTotalLabel(result) {
@@ -617,7 +622,7 @@ async function makeExcelQuote({ siteInfo, supplier, result, currency = "GBP" }) 
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = `${filenameBase}_Quote${currency === "EUR" ? "_EUR" : ""}.xlsx`;
+  link.download = `${filenameBase}${quoteExportPaymentSuffix(result)}_Quote${currency === "EUR" ? "_EUR" : ""}.xlsx`;
   document.body.appendChild(link);
   link.click();
   link.remove();
@@ -830,7 +835,7 @@ function makeSummaryPDF({ siteInfo, supplier, result, scanners, weighPays, t2eEx
   doc.text("Compass UK&I Digital  |  Leadership through innovation", 11, 292);
   doc.text("Generated "+today+" \u00b7 Estimate - subject to site survey", W-11, 292, {align:"right"});
 
-  doc.save((siteInfo.siteName||"Quote").replace(/[^a-zA-Z0-9]/g,"_")+"_Summary"+(currency === "EUR" ? "_EUR" : "")+".pdf");
+  doc.save((siteInfo.siteName||"Quote").replace(/[^a-zA-Z0-9]/g,"_")+quoteExportPaymentSuffix(result)+"_Summary"+(currency === "EUR" ? "_EUR" : "")+".pdf");
 }
 
 function makeBreakdownPDF({ siteInfo, supplier, result, scanners, weighPays, t2eExisting, currency = "GBP" }) {
@@ -1007,7 +1012,7 @@ function makeBreakdownPDF({ siteInfo, supplier, result, scanners, weighPays, t2e
 
   drawFooter();
 
-  doc.save((siteInfo.siteName||"Quote").replace(/[^a-zA-Z0-9]/g,"_")+"_Breakdown"+(currency === "EUR" ? "_EUR" : "")+".pdf");
+  doc.save((siteInfo.siteName||"Quote").replace(/[^a-zA-Z0-9]/g,"_")+quoteExportPaymentSuffix(result)+"_Breakdown"+(currency === "EUR" ? "_EUR" : "")+".pdf");
 }
 
 // ── Animated number ──────────────────────────────────────────────────────────
