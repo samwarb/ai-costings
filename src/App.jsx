@@ -362,7 +362,9 @@ async function makeExcelQuote({ siteInfo, supplier, result, currency = "GBP" }) 
   const rpiBaseRows = [];
   const annualRows = [];
   const annualLicenceRows = [];
+  const hasRenewals = result.supplier === "AUTOCANTEEN" && !isUpfrontAutoCanteen(result);
   let rpiRow = null;
+  let annualRpiRow = null;
   result.sectionOrder.forEach((sectionId) => {
     const sectionLabel = result.sectionLabels[sectionId] || sectionId;
     const items = result.breakdown.filter((item) => (item.sectionId || item.section) === sectionId);
@@ -423,7 +425,30 @@ async function makeExcelQuote({ siteInfo, supplier, result, currency = "GBP" }) 
       alignment: { horizontal: "left", vertical: "center" },
     });
     sheet.getCell(`H${subtotalRow}`).alignment = { horizontal: "right", vertical: "center" };
-    rowNumber += 2;
+    rowNumber += 1;
+    if (hasRenewals && sectionId === "Annual") {
+      annualRpiRow = rowNumber;
+      mergeText(`A${rowNumber}:G${rowNumber}`, "MSA RPI 10% indexation (Years 2 & 3, each)");
+      setAmount(rowNumber, result.renewalRpi,
+        `=ROUND((${annualLicenceRows.map(row => `H${row}`).join("+") || "0"})*10%,2)`);
+      setRowStyle(rowNumber, { fill: "#F8FAFC", font: { name: "Aptos", size: 11, color: { argb: toArgb(bodyText) } }, alignment: { horizontal: "left", vertical: "center" }, border: { bottom: lightBorder } });
+      sheet.getCell(`H${rowNumber}`).alignment = { horizontal: "right", vertical: "center" };
+      rowNumber += 1;
+
+      mergeText(`A${rowNumber}:G${rowNumber}`, "Annual Payment — Years 2 & 3 (each)");
+      setAmount(rowNumber, result.renewalAnnualTotal, `=H${subtotalRow}+H${annualRpiRow}`);
+      setRowStyle(rowNumber, { fill: "#E5E7EB", font: { name: "Aptos", size: 11, bold: true, color: { argb: toArgb(navy) } }, alignment: { horizontal: "left", vertical: "center" } });
+      sheet.getCell(`H${rowNumber}`).alignment = { horizontal: "right", vertical: "center" };
+      rowNumber += 1;
+
+      mergeText(`A${rowNumber}:H${rowNumber}`, "Year 1 licence RPI is included in the Year 1 RPI charge under Installation.", {
+        font: { name: "Aptos", size: 9, italic: true, color: { argb: toArgb(mutedText) } },
+        alignment: { horizontal: "left", vertical: "center", wrapText: true },
+      });
+      sheet.getRow(rowNumber).height = 28;
+      rowNumber += 1;
+    }
+    rowNumber += 1;
   });
   if (rpiRow !== null) {
     setAmount(rpiRow, result.breakdown.find(item => item.rpiCharge).cost,
@@ -498,7 +523,6 @@ async function makeExcelQuote({ siteInfo, supplier, result, currency = "GBP" }) 
     rowNumber += 1;
   }
 
-  const hasRenewals = result.supplier === "AUTOCANTEEN" && !isUpfrontAutoCanteen(result);
   const contingencyRateRow = rowNumber + 2;
   const contingencyRow = rowNumber;
   sheet.mergeCells(`A${contingencyRow}:G${contingencyRow}`);
@@ -548,7 +572,7 @@ async function makeExcelQuote({ siteInfo, supplier, result, currency = "GBP" }) 
     sheet.getCell(`H${rowNumber}`).alignment = { horizontal: "right", vertical: "center" };
     rowNumber += 1;
     const annualBaseFormula = annualRows.map(row => `H${row}`).join("+") || "0";
-    const renewalRpiFormula = `ROUND((${annualLicenceRows.map(row => `H${row}`).join("+") || "0"})*10%,2)`;
+    const renewalRpiFormula = annualRpiRow === null ? "0" : `H${annualRpiRow}`;
     annualPaymentSchedule(result).forEach(payment => {
       mergeText(`A${rowNumber}:C${rowNumber}`, `Year ${payment.year}`);
       sheet.mergeCells(`D${rowNumber}:G${rowNumber}`);
