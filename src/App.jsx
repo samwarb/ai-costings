@@ -114,17 +114,21 @@ function withAutoCanteenRpi(breakdown, context) {
   if (context.supplier !== "AUTOCANTEEN") return breakdown;
   const items = breakdown.filter(item => !item.rpiCharge);
   if (context.paymentPlan !== "annual") return items;
-  const base = items.filter(item => item.rpiEligible).reduce((sum, item) => sum + item.cost, 0);
-  if (!base) return items;
-  const rpi = Number((base * 0.1).toFixed(2));
-  const installation = items.find(item => (item.sectionId || item.section) === "Installation");
-  const insertAt = items.findIndex(item => (item.sectionId || item.section) === "Annual");
-  items.splice(insertAt < 0 ? items.length : insertAt, 0, {
-    sectionId: "Installation", section: installation?.section || "Installation",
-    label: "MSA RPI 10% indexation from 2023 (Year 1)",
-    unitCost: rpi, qty: 1, cost: rpi, rpiCharge: true,
+  const sectionIds = [...new Set(items.map(item => item.sectionId || item.section))];
+  const rpiLabels = { Hardware: "Hardware", Installation: "Installation & Support", Annual: "Annual Licences" };
+  return sectionIds.flatMap(sectionId => {
+    const sectionItems = items.filter(item => (item.sectionId || item.section) === sectionId);
+    const base = sectionItems.filter(item => item.rpiEligible).reduce((sum, item) => sum + item.cost, 0);
+    if (base) {
+      const rpi = Number((base * 0.1).toFixed(2));
+      sectionItems.push({
+        sectionId, section: sectionItems[0].section,
+        label: `MSA RPI 10% indexation (${rpiLabels[sectionId] || sectionItems[0].section})`,
+        unitCost: rpi, qty: 1, cost: rpi, rpiCharge: true,
+      });
+    }
+    return sectionItems;
   });
-  return items;
 }
 
 function isUpfrontAutoCanteen(result) {
@@ -144,7 +148,7 @@ function quoteTotalLabel(result) {
 function quotePaymentText(result) {
   if (result.supplier !== "AUTOCANTEEN") return "";
   if (isUpfrontAutoCanteen(result)) return "Upfront payment: 36-month licence and support costs paid in full. No RPI indexation.";
-  return "Annual payment: 36-month licence term. Year 1 RPI covers AutoCanteen hardware, installation, support and licences. Year 2 and Year 3 RPI covers licences only. The separate 10% charges are shown in the annual payment schedule.";
+  return "Annual payment: 36-month licence term. Year 1 RPI covers AutoCanteen hardware, installation, support and licences. Year 2 and Year 3 RPI covers licences only. RPI is itemised in the Hardware, Installation and Annual sections.";
 }
 
 function annualPaymentSchedule(result) {
@@ -180,7 +184,7 @@ function buildCustomResult(breakdown, contingencyOverride = null, context = {}) 
   const subtotal = Object.values(sectionTotals).reduce((sum, value) => sum + value, 0);
   const defaultContingency = subtotal * 0.025;
   const contingency = contingencyOverride === null ? defaultContingency : contingencyOverride;
-  const annualItems = breakdown.filter(item => (item.sectionId || item.section) === "Annual");
+  const annualItems = breakdown.filter(item => (item.sectionId || item.section) === "Annual" && !item.rpiCharge);
   const renewalBase = annualItems.reduce((sum, item) => sum + item.cost, 0);
   const renewalRpiBase = annualItems.filter(item => item.rpiEligible).reduce((sum, item) => sum + item.cost, 0);
   const renewalRpi = Number((renewalRpiBase * 0.1).toFixed(2));
@@ -189,7 +193,7 @@ function buildCustomResult(breakdown, contingencyOverride = null, context = {}) 
   return {
     supplier: context.supplier,
     paymentPlan: context.paymentPlan,
-    year1Rpi: breakdown.find(item => item.rpiCharge)?.cost || 0,
+    year1Rpi: breakdown.filter(item => item.rpiCharge).reduce((sum, item) => sum + item.cost, 0),
     renewalRpi,
     renewalAnnualTotal,
     breakdown,
@@ -359,13 +363,12 @@ async function makeExcelQuote({ siteInfo, supplier, result, currency = "GBP" }) 
     rowNumber += 2;
   }
   const sectionSubtotalRows = {};
-  const rpiBaseRows = [];
-  const annualRows = [];
-  const annualLicenceRows = [];
+  const rpiBaseRows = {};
+  const rpiRows = [];
   const hasRenewals = result.supplier === "AUTOCANTEEN" && !isUpfrontAutoCanteen(result);
-  let rpiRow = null;
   let annualRpiRow = null;
   result.sectionOrder.forEach((sectionId) => {
+    const includeAnnualRpi = hasRenewals && sectionId === "Annual";
     const sectionLabel = result.sectionLabels[sectionId] || sectionId;
     const items = result.breakdown.filter((item) => (item.sectionId || item.section) === sectionId);
     sheet.mergeCells(`A${rowNumber}:G${rowNumber}`);
@@ -384,11 +387,13 @@ async function makeExcelQuote({ siteInfo, supplier, result, currency = "GBP" }) 
     items.forEach((item, itemIndex) => {
       const itemRow = rowNumber;
       itemRows.push(itemRow);
-      if (item.rpiEligible) rpiBaseRows.push(itemRow);
-      if (item.rpiCharge) rpiRow = itemRow;
-      if (sectionId === "Annual") {
-        annualRows.push(itemRow);
-        if (item.rpiEligible) annualLicenceRows.push(itemRow);
+      if (item.rpiEligible) {
+        if (!rpiBaseRows[sectionId]) rpiBaseRows[sectionId] = [];
+        rpiBaseRows[sectionId].push(itemRow);
+      }
+      if (item.rpiCharge) {
+        rpiRows.push({ row: itemRow, sectionId, cost: item.cost });
+        if (sectionId === "Annual") annualRpiRow = itemRow;
       }
       sheet.mergeCells(`A${itemRow}:E${itemRow}`);
       sheet.getCell(`A${itemRow}`).value = `${item.label}${item.qty > 1 ? ` (x${item.qty})` : ""}`;
@@ -426,38 +431,23 @@ async function makeExcelQuote({ siteInfo, supplier, result, currency = "GBP" }) 
     });
     sheet.getCell(`H${subtotalRow}`).alignment = { horizontal: "right", vertical: "center" };
     rowNumber += 1;
-    if (hasRenewals && sectionId === "Annual") {
-      annualRpiRow = rowNumber;
-      mergeText(`A${rowNumber}:G${rowNumber}`, "MSA RPI 10% indexation (Years 2 & 3, each)");
-      setAmount(rowNumber, result.renewalRpi,
-        `=ROUND((${annualLicenceRows.map(row => `H${row}`).join("+") || "0"})*10%,2)`);
-      setRowStyle(rowNumber, { fill: "#F8FAFC", font: { name: "Aptos", size: 11, color: { argb: toArgb(bodyText) } }, alignment: { horizontal: "left", vertical: "center" }, border: { bottom: lightBorder } });
-      sheet.getCell(`H${rowNumber}`).alignment = { horizontal: "right", vertical: "center" };
-      rowNumber += 1;
-
-      mergeText(`A${rowNumber}:G${rowNumber}`, "Annual Payment — Years 2 & 3 (each)");
-      setAmount(rowNumber, result.renewalAnnualTotal, `=H${subtotalRow}+H${annualRpiRow}`);
-      setRowStyle(rowNumber, { fill: "#E5E7EB", font: { name: "Aptos", size: 11, bold: true, color: { argb: toArgb(navy) } }, alignment: { horizontal: "left", vertical: "center" } });
-      sheet.getCell(`H${rowNumber}`).alignment = { horizontal: "right", vertical: "center" };
-      rowNumber += 1;
-
-      mergeText(`A${rowNumber}:H${rowNumber}`, "Year 1 licence RPI is included in the Year 1 RPI charge under Installation.", {
+    if (includeAnnualRpi) {
+      mergeText(`A${rowNumber}:H${rowNumber}`, "This annual subtotal includes licence RPI for each contract year. Hardware and installation are paid in Year 1 only.", {
         font: { name: "Aptos", size: 9, italic: true, color: { argb: toArgb(mutedText) } },
         alignment: { horizontal: "left", vertical: "center", wrapText: true },
       });
-      sheet.getRow(rowNumber).height = 28;
+      sheet.getRow(rowNumber).height = 32;
       rowNumber += 1;
     }
     rowNumber += 1;
   });
-  if (rpiRow !== null) {
-    setAmount(rpiRow, result.breakdown.find(item => item.rpiCharge).cost,
-      `=ROUND((${rpiBaseRows.map(row => `H${row}`).join("+") || "0"})*10%,2)`);
-  }
+  rpiRows.forEach(({ row, sectionId, cost }) => {
+    setAmount(row, cost, `=ROUND((${(rpiBaseRows[sectionId] || []).map(baseRow => `H${baseRow}`).join("+") || "0"})*10%,2)`);
+  });
 
   const costSummaryBandRow = rowNumber;
   sheet.mergeCells(`A${costSummaryBandRow}:G${costSummaryBandRow}`);
-  sheet.getCell(`A${costSummaryBandRow}`).value = "Cost Summary";
+  sheet.getCell(`A${costSummaryBandRow}`).value = hasRenewals ? "Year 1 Cost Summary" : "Cost Summary";
   sheet.getCell(`H${costSummaryBandRow}`).value = symbol;
   setRowStyle(costSummaryBandRow, {
     fill: supplierColour,
@@ -571,17 +561,17 @@ async function makeExcelQuote({ siteInfo, supplier, result, currency = "GBP" }) 
     setRowStyle(rowNumber, { fill: "#E5E7EB", font: { name: "Aptos", size: 10, bold: true, color: { argb: toArgb(navy) } } });
     sheet.getCell(`H${rowNumber}`).alignment = { horizontal: "right", vertical: "center" };
     rowNumber += 1;
-    const annualBaseFormula = annualRows.map(row => `H${row}`).join("+") || "0";
     const renewalRpiFormula = annualRpiRow === null ? "0" : `H${annualRpiRow}`;
+    const year1RpiFormula = rpiRows.map(({ row }) => `H${row}`).join("+") || "0";
     const payments = annualPaymentSchedule(result);
     const firstPaymentRow = rowNumber;
     payments.forEach(payment => {
       mergeText(`A${rowNumber}:C${rowNumber}`, `Year ${payment.year}`);
       sheet.mergeCells(`D${rowNumber}:G${rowNumber}`);
       const rpiCell = sheet.getCell(`D${rowNumber}`);
-      rpiCell.value = { formula: payment.year === 1 ? (rpiRow === null ? "0" : `H${rpiRow}`) : renewalRpiFormula, result: payment.rpi };
+      rpiCell.value = { formula: payment.year === 1 ? year1RpiFormula : renewalRpiFormula, result: payment.rpi };
       rpiCell.numFmt = currencyFormat;
-      setAmount(rowNumber, payment.total, payment.year === 1 ? `=H${totalRow}` : `=(${annualBaseFormula})+D${rowNumber}`);
+      setAmount(rowNumber, payment.total, payment.year === 1 ? `=H${totalRow}` : (sectionSubtotalRows.Annual ? `=H${sectionSubtotalRows.Annual}` : "=0"));
       setRowStyle(rowNumber, { fill: payment.year % 2 === 1 ? "#F8FAFC" : "#FFFFFF", font: { name: "Aptos", size: 11, color: { argb: toArgb(bodyText) } }, alignment: { horizontal: "left", vertical: "center" }, border: { bottom: lightBorder } });
       rpiCell.alignment = { horizontal: "right", vertical: "center" };
       sheet.getCell(`H${rowNumber}`).alignment = { horizontal: "right", vertical: "center" };
@@ -1620,18 +1610,16 @@ export default function App() {
                 <table style={{width:"100%",borderCollapse:"collapse",fontSize:".85rem"}}>
                   <thead><tr>
                     <th style={{textAlign:"left",padding:".7rem 0"}}>Payment year</th>
-                    <th style={{textAlign:"right",padding:".7rem 0"}}>MSA RPI 10% indexation</th>
                     <th style={{textAlign:"right",padding:".7rem 0"}}>Payment total</th>
                   </tr></thead>
                   <tbody>{annualPaymentSchedule(displayResult).map(payment=>(
                     <tr key={payment.year} style={{borderTop:"1px solid #e5e7eb"}}>
                       <td style={{padding:".7rem 0"}}>Year {payment.year}</td>
-                      <td style={{textAlign:"right",padding:".7rem 0"}}>{formatMoney(payment.rpi)}</td>
                       <td style={{textAlign:"right",padding:".7rem 0"}}>{formatMoney(payment.total)}</td>
                     </tr>
                   ))}</tbody>
                 </table>
-                <div className="currency-note">Year 1 payment includes contingency. Years 2 and 3 exclude contingency. RPI excludes Worldpay and the separate Compass implementation fee.</div>
+                <div className="currency-note">Year 1 payment includes contingency. Years 2 and 3 exclude contingency.</div>
               </div>
             )}
             <div className="pdf-panel">
