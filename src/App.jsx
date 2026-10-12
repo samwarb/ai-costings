@@ -778,7 +778,7 @@ function makeSummaryPDF({ siteInfo, supplier, result, scanners, weighPays, t2eEx
     items.forEach((item, i) => {
       if (i%2===0) { doc.setFillColor(249,250,251); doc.rect(10,y-1,W-20,8,"F"); }
       doc.setTextColor(55,65,81); doc.setFont("helvetica","normal"); doc.setFontSize(9);
-      doc.text(item.label, 14, y+4.5);
+      doc.text(`${item.label}${item.qty > 1 ? ` (x${item.qty})` : ""}`, 14, y+4.5);
       doc.text(fmtN(item.cost), W-13, y+4.5, {align:"right"});
       y += 8;
     });
