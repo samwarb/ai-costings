@@ -224,7 +224,7 @@ function hexRgb(hex) {
 }
 
 // ── Excel builder ────────────────────────────────────────────────────────────
-async function makeExcelQuote({ siteInfo, supplier, result, currency = "GBP" }) {
+async function makeExcelQuote({ siteInfo, supplier, result, currency = "GBP", asFile = false }) {
   const symbol = currencySymbol(currency);
   const workbook = new ExcelJS.Workbook();
   workbook.creator = "Compass UK&I Digital";
@@ -646,10 +646,12 @@ async function makeExcelQuote({ siteInfo, supplier, result, currency = "GBP" }) 
     .replace(/^_+|_+$/g, "") || "Quote";
   const buffer = await workbook.xlsx.writeBuffer();
   const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+  const filename = `${filenameBase}${quoteExportPaymentSuffix(result)}_Quote${currency === "EUR" ? "_EUR" : ""}.xlsx`;
+  if (asFile) return new File([blob], filename, {type: blob.type});
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = `${filenameBase}${quoteExportPaymentSuffix(result)}_Quote${currency === "EUR" ? "_EUR" : ""}.xlsx`;
+  link.download = filename;
   document.body.appendChild(link);
   link.click();
   link.remove();
@@ -686,7 +688,7 @@ function drawAnnualPaymentSchedule(doc, result, currency, { x, y, width, color }
   return y + 4 + note.length * 3.5 + 4;
 }
 
-function makeSummaryPDF({ siteInfo, supplier, result, scanners, weighPays, t2eExisting, currency = "GBP" }) {
+function makeSummaryPDF({ siteInfo, supplier, result, scanners, weighPays, t2eExisting, currency = "GBP", asFile = false }) {
   const symbol = currencySymbol(currency);
   const formatMoney = (value) => fmt(value, currency);
   const doc = new jsPDF({ orientation:"portrait", unit:"mm", format:"a4" });
@@ -862,10 +864,12 @@ function makeSummaryPDF({ siteInfo, supplier, result, scanners, weighPays, t2eEx
   doc.text("Compass UK&I Digital  |  Leadership through innovation", 11, 292);
   doc.text("Generated "+today+" \u00b7 Estimate - subject to site survey", W-11, 292, {align:"right"});
 
-  doc.save((siteInfo.siteName||"Quote").replace(/[^a-zA-Z0-9]/g,"_")+quoteExportPaymentSuffix(result)+"_Summary"+(currency === "EUR" ? "_EUR" : "")+".pdf");
+  const filename = (siteInfo.siteName||"Quote").replace(/[^a-zA-Z0-9]/g,"_")+quoteExportPaymentSuffix(result)+"_Summary"+(currency === "EUR" ? "_EUR" : "")+".pdf";
+  if (asFile) return new File([doc.output("blob")],filename,{type:"application/pdf"});
+  doc.save(filename);
 }
 
-function makeBreakdownPDF({ siteInfo, supplier, result, scanners, weighPays, t2eExisting, currency = "GBP" }) {
+function makeBreakdownPDF({ siteInfo, supplier, result, scanners, weighPays, t2eExisting, currency = "GBP", asFile = false }) {
   const symbol = currencySymbol(currency);
   const formatMoney = (value) => fmt(value, currency);
   const doc = new jsPDF({ orientation:"landscape", unit:"mm", format:"a4" });
@@ -1039,7 +1043,9 @@ function makeBreakdownPDF({ siteInfo, supplier, result, scanners, weighPays, t2e
 
   drawFooter();
 
-  doc.save((siteInfo.siteName||"Quote").replace(/[^a-zA-Z0-9]/g,"_")+quoteExportPaymentSuffix(result)+"_Breakdown"+(currency === "EUR" ? "_EUR" : "")+".pdf");
+  const filename = (siteInfo.siteName||"Quote").replace(/[^a-zA-Z0-9]/g,"_")+quoteExportPaymentSuffix(result)+"_Breakdown"+(currency === "EUR" ? "_EUR" : "")+".pdf";
+  if (asFile) return new File([doc.output("blob")],filename,{type:"application/pdf"});
+  doc.save(filename);
 }
 
 // ── Animated number ──────────────────────────────────────────────────────────
@@ -1083,6 +1089,28 @@ export default function App() {
   const [quoteCurrency,setQuoteCurrency]=useState("GBP");
   const [paymentPlan,setPaymentPlan]=useState("annual");
   const [customQuotes,setCustomQuotes]=useState({});
+  const [workspaceTransferStatus,setWorkspaceTransferStatus]=useState("idle");
+  const [workspaceTransferError,setWorkspaceTransferError]=useState("");
+  const transferRef=useRef(null);
+  const workspaceProjectId = new URLSearchParams(window.location.search).get("workspaceProjectId") || "";
+  const safeWorkspaceProjectId = /^[a-zA-Z0-9_-]{1,80}$/.test(workspaceProjectId) ? workspaceProjectId : "";
+  const WORKSPACE_ORIGIN="https://compass-workspace.swgwarburton.workers.dev";
+  useEffect(()=>{
+    const onMessage=(event)=>{
+      const transfer=transferRef.current;
+      if(!transfer||event.origin!==WORKSPACE_ORIGIN||event.source!==transfer.window||event.data?.nonce!==transfer.nonce)return;
+      if(event.data.type==="COMPASS_QUOTE_READY" && transfer.bundle){
+        transfer.window.postMessage({type:"AI_COSTINGS_QUOTE",nonce:transfer.nonce,...transfer.bundle},WORKSPACE_ORIGIN);
+        setWorkspaceTransferStatus("received");
+      }
+      if(event.data.type==="COMPASS_QUOTE_SAVED"){
+        setWorkspaceTransferStatus("saved");
+        transferRef.current=null;
+      }
+    };
+    window.addEventListener("message",onMessage);
+    return()=>window.removeEventListener("message",onMessage);
+  },[]);
   const currency = supplier === "DELIGO" ? quoteCurrency : "GBP";
   const quoteKey = supplier === "AUTOCANTEEN" ? `${currency}:${paymentPlan}` : currency;
   const formatMoney = (value) => fmt(value, currency);
@@ -1124,6 +1152,58 @@ export default function App() {
   const siteInfo={siteName,unitNumber,clientName,contactName,address,goLive,sector,sectorContact};
   const pdfArgs={siteInfo,supplier,result:displayResult,scanners,weighPays,t2eExisting,currency};
   const excelArgs={siteInfo,supplier,result:displayResult,currency};
+  const buildWorkspaceBundle=async()=>{
+    if(!displayResult||!siteName.trim())throw new Error("Enter a site / outlet name before sending the quote.");
+    const quote={version:1,generatedAt:new Date().toISOString(),supplier,currency,
+      siteInfo:{...siteInfo},equipment:{scanners,weighPays,additionalScreens,receiptPrinters,
+        eduSubscription,mobDays,wbhDays,smeDays,t2eExisting,paymentPlan},
+      pricing:{grandTotal:displayResult.grandTotal,capexTotal:costTypeTotals.capexTotal,
+        opexTotal:costTypeTotals.opexTotal,contingency:displayResult.contingency||0,
+        breakdown:displayResult.breakdown.map(item=>({...item})),
+        paymentSchedule:annualPaymentSchedule(displayResult)}};
+    const summary=makeSummaryPDF({...pdfArgs,asFile:true});
+    const breakdown=makeBreakdownPDF({...pdfArgs,asFile:true});
+    const excel=await makeExcelQuote({...excelArgs,asFile:true});
+    return {quote,documents:{summary,breakdown,excel}};
+  };
+  const sendToWorkspace=async()=>{
+    if(workspaceTransferStatus==="preparing")return;
+    const nonce=crypto.randomUUID();
+    const dest=WORKSPACE_ORIGIN+"/?quoteImport="+encodeURIComponent(nonce)
+      +(safeWorkspaceProjectId?"&projectId="+encodeURIComponent(safeWorkspaceProjectId):"");
+    const win=window.open(dest,"_blank");
+    if(!win){setWorkspaceTransferError("Pop-up blocked. Allow pop-ups or download the import file below.");setWorkspaceTransferStatus("error");return;}
+    transferRef.current={window:win,nonce,bundle:null};
+    setWorkspaceTransferStatus("preparing");setWorkspaceTransferError("");
+    try{
+      const bundle=await buildWorkspaceBundle();
+      if(transferRef.current?.nonce===nonce)transferRef.current.bundle=bundle;
+      setWorkspaceTransferStatus("waiting");
+    }catch(error){setWorkspaceTransferStatus("error");setWorkspaceTransferError(error.message||"Unable to generate quote documents.");}
+  };
+  const downloadWorkspaceImport=async()=>{
+    if(workspaceTransferStatus==="preparing")return;
+    setWorkspaceTransferStatus("preparing");setWorkspaceTransferError("");
+    try{
+      const bundle=await buildWorkspaceBundle();
+      const documents={};
+      for(const [kind,file] of Object.entries(bundle.documents)){
+        const encoded=await new Promise((resolve,reject)=>{
+          const reader=new FileReader();
+          reader.onload=()=>resolve(reader.result);
+          reader.onerror=()=>reject(reader.error);
+          reader.readAsDataURL(file);
+        });
+        documents[kind]={name:file.name,dataUrl:encoded};
+      }
+      const blob=new Blob([JSON.stringify({format:"compass-quote-transfer",version:1,quote:bundle.quote,documents})],{type:"application/json"});
+      const objectUrl=URL.createObjectURL(blob),link=document.createElement("a");
+      link.href=objectUrl;link.download=(siteName||"quote").replace(/[^\w-]/g,"_")+"_Workspace_Import.json";
+      document.body.appendChild(link);link.click();link.remove();
+      setTimeout(()=>URL.revokeObjectURL(objectUrl),2000);
+      setWorkspaceTransferStatus("downloaded");
+    }catch(error){setWorkspaceTransferStatus("error");setWorkspaceTransferError(error.message||"Unable to prepare the import file.");}
+  };
 
   const updateCustomItem = (index, field, value) => {
     setCustomBreakdown(current => current.map((item, i) => {
@@ -1323,6 +1403,8 @@ export default function App() {
     .pdf-btn:active{transform:translateY(0);}
     .fsel{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236b7280' d='M6 8L1 3h10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right .7rem center;padding-right:2rem;cursor:pointer;}
     .pipeline-section{margin-top:1.25rem;padding-top:1.25rem;border-top:1.5px solid #e5e7eb;}
+    .workspace-status{color:#42614d;font-size:.8rem;margin:.7rem 0;line-height:1.5;}
+    .workspace-import-actions{display:flex;gap:.7rem;flex-wrap:wrap;}
     .pipeline-lbl{font-size:.6rem;letter-spacing:.25em;text-transform:uppercase;color:#9ca3af;font-weight:600;margin-bottom:.4rem;}
     .pipeline-desc{font-size:.78rem;color:#6b7280;margin-bottom:.85rem;line-height:1.5;}
     .pipeline-btn{background:#059669 !important;color:#fff !important;}
@@ -1635,6 +1717,23 @@ export default function App() {
                 <button className="pdf-btn" style={{background:"#00845a",color:"#fff"}} onClick={()=>makeExcelQuote(excelArgs)}>
                   📊 Download Excel Quote
                 </button>
+              </div>
+              <div className="pipeline-section">
+                <div className="pipeline-lbl">Compass Workspace</div>
+                <div className="pipeline-desc">Save this costing and its three documents against a project, or leave it in the Quotes Inbox.</div>
+                <div className="workspace-import-actions">
+                  <button className="pdf-btn" style={{background:"#123b63",color:"#fff"}} onClick={sendToWorkspace} disabled={workspaceTransferStatus==="preparing"}>
+                    {workspaceTransferStatus==="preparing"?"Preparing documents…":"📤 Send to Workspace"}
+                  </button>
+                  <button className="pdf-btn" style={{background:"#f1f5f9",color:"#123b63",boxShadow:"none"}} onClick={downloadWorkspaceImport} disabled={workspaceTransferStatus==="preparing"}>
+                    Download import file
+                  </button>
+                </div>
+                {workspaceTransferStatus==="waiting"&&<p className="workspace-status">Workspace opened. Sign in if prompted, then choose a project and save.</p>}
+                {workspaceTransferStatus==="received"&&<p className="workspace-status">Quote received by Workspace — choose where to save it.</p>}
+                {workspaceTransferStatus==="saved"&&<p className="workspace-status">✓ Quote saved to Compass Workspace.</p>}
+                {workspaceTransferStatus==="downloaded"&&<p className="workspace-status">Import file downloaded. Open Workspace → Quotes → Import file.</p>}
+                {workspaceTransferError&&<p className="pipeline-err" role="alert">{workspaceTransferError}</p>}
               </div>
               <div className="pipeline-section">
                 <div className="pipeline-lbl">Submit to Pipeline</div>
