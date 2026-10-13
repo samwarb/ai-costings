@@ -66,7 +66,7 @@ Uses [jsPDF](https://github.com/parallax/jsPDF) — generates real PDFs directly
 
 ## Compass Workspace integration
 
-At the end of a quote, choose **Send to Workspace**. AI Costings opens a separate, Cloudflare Access-protected Compass Workspace window and sends the price snapshot with the Client Summary PDF, Cost Breakdown PDF and Excel quote via a nonce-bound cross-origin `postMessage` exchange. It does not send Workspace credentials or the quote to a public API. The Workspace window validates the source origin and records the snapshot in private Cloudflare D1, with documents stored in private R2.
+At the end of a quote, choose **Send to Workspace**. An authenticated pop-up asks which project to send it to; select a project and click **Send to project**. You no longer have to fill in Site / Outlet Name first: when left blank, the selected project's name is used consistently for the saved quote, PDF documents and Excel file. For an unassigned quote, the name defaults to **Unassigned costing**. AI Costings opens a separate, Cloudflare Access-protected Compass Workspace window and sends the price snapshot with the Client Summary PDF, Cost Breakdown PDF and Excel quote via a nonce-bound cross-origin `postMessage` exchange. It does not send Workspace credentials or the quote to a public API. The Workspace window validates the source origin and records the snapshot in private Cloudflare D1, with documents stored in private R2.
 
 Choose an existing project or **Unassigned Quotes Inbox**. You can also open AI Costings from a project's **Quotes** tab to preselect the target project.
 
