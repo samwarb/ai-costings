@@ -1127,13 +1127,21 @@ export default function App() {
     const onMessage=(event)=>{
       const transfer=transferRef.current;
       if(!transfer||!WORKSPACE_FRAME_ORIGIN.test(event.origin)||!isWorkspaceFrame(transfer.window,event.source)||event.data?.nonce!==transfer.nonce)return;
-      if(event.data.type==="COMPASS_QUOTE_READY" && !transfer.started){
+      if(event.data.type==="COMPASS_QUOTE_PICKER_READY" && !transfer.started){
+        transfer.connected=true;
+        if(transfer.helloTimer)clearInterval(transfer.helloTimer);
+        transfer.helloTimer=null;
+        setWorkspaceTransferStatus("choosing");
+        setWorkspaceTransferError("");
+      }
+      if(event.data.type==="COMPASS_QUOTE_DESTINATION" && !transfer.started){
         const projectId=typeof event.data.projectId==="string"?event.data.projectId:"";
         const projectName=event.data.projectName||"";
-        if(typeof projectId!=="string" || (projectId && !/^[a-zA-Z0-9_-]{1,80}$/.test(projectId)))return;
-        if(typeof projectName!=="string" || projectName.length>250 || (projectId && projectName.trim() && projectName.length>250))return;
+        if(projectId && !/^[a-zA-Z0-9_-]{1,80}$/.test(projectId))return;
+        if(typeof projectName!=="string" || projectName.length>250)return;
         transfer.started=true;
         transfer.projectId=projectId;
+        transfer.projectName=projectName;
         setWorkspaceTransferStatus("preparing");
         setWorkspaceTransferError("");
         void bundleBuilderRef.current?.(projectName).then(bundle=>{
@@ -1149,6 +1157,13 @@ export default function App() {
           setWorkspaceTransferStatus("error");
           setWorkspaceTransferError(detail);
         });
+      }
+      if(event.data.type==="COMPASS_QUOTE_CANCELLED"){
+        if(transfer.helloTimer)clearInterval(transfer.helloTimer);
+        transferRef.current=null;
+        setWorkspaceTransferStatus("idle");
+        setWorkspaceTransferError("");
+        return;
       }
       if(event.data.type==="COMPASS_QUOTE_RECEIVED"){
         if(transfer.helloTimer)clearInterval(transfer.helloTimer);
@@ -1167,7 +1182,7 @@ export default function App() {
     };
     window.addEventListener("message",onMessage);
     return()=>window.removeEventListener("message",onMessage);
-  },[safeWorkspaceProjectId]);
+  },[safeWorkspaceProjectId,safeWorkspaceProjectName]);
   const currency = supplier === "DELIGO" ? quoteCurrency : "GBP";
   const quoteKey = supplier === "AUTOCANTEEN" ? `${currency}:${paymentPlan}` : currency;
   const formatMoney = (value) => fmt(value, currency);
@@ -1234,11 +1249,11 @@ export default function App() {
     if(!win){setWorkspaceTransferError("Pop-up blocked. Allow pop-ups or download the import file below.");setWorkspaceTransferStatus("error");return;}
     const transfer={window:win,nonce,bundle:null,started:false,projectId:"",helloTimer:null};
     transferRef.current=transfer;
-    const hello=()=>pingWorkspaceFrames(win,{type:"COMPASS_QUOTE_HELLO",nonce,projectId:safeWorkspaceProjectId});
+    const hello=()=>pingWorkspaceFrames(win,{type:"COMPASS_QUOTE_HELLO",nonce,projectId:safeWorkspaceProjectId,projectName:safeWorkspaceProjectName});
     hello();
     transfer.helloTimer=window.setInterval(hello,500);
     window.setTimeout(()=>{
-      if(transferRef.current!==transfer||transfer.started)return;
+      if(transferRef.current!==transfer||transfer.connected||transfer.started)return;
       if(transfer.helloTimer)clearInterval(transfer.helloTimer);
       setWorkspaceTransferStatus("error");
       setWorkspaceTransferError("Microsoft Workspace did not connect. Use Download import file, then import it from Workspace → Quotes.");
@@ -1785,17 +1800,18 @@ export default function App() {
               </div>
               <div className="pipeline-section">
                 <div className="pipeline-lbl">Compass Workspace</div>
-                <div className="pipeline-desc">Save this costing and its three documents against a project, or leave it in the Quotes Inbox.</div>
+              <div className="pipeline-desc">Choose a project or Unassigned in Microsoft Workspace before the quote and its documents are sent.</div>
                 <div className="workspace-import-actions">
-                  <button className="pdf-btn" style={{background:"#123b63",color:"#fff"}} onClick={sendToWorkspace} disabled={workspaceTransferStatus==="preparing"}>
-                    {workspaceTransferStatus==="preparing"?"Preparing documents…":"📤 Send to Workspace"}
+                  <button className="pdf-btn" style={{background:"#123b63",color:"#fff"}} onClick={sendToWorkspace} disabled={["waiting","choosing","preparing"].includes(workspaceTransferStatus)}>
+                    {["waiting","choosing"].includes(workspaceTransferStatus)?"Workspace open…":workspaceTransferStatus==="preparing"?"Preparing documents…":"📤 Send to Workspace"}
                   </button>
                   <button className="pdf-btn" style={{background:"#f1f5f9",color:"#123b63",boxShadow:"none"}} onClick={downloadWorkspaceImport} disabled={workspaceTransferStatus==="preparing"}>
                     Download import file
                   </button>
                 </div>
                 {workspaceTransferStatus==="waiting"&&<p className="workspace-status">Microsoft Workspace opened. Keep both tabs open while the secure handoff connects.</p>}
-                {workspaceTransferStatus==="received"&&<p className="workspace-status">Quote delivered. Review the destination and save it in the Microsoft Workspace tab.</p>}
+                {workspaceTransferStatus==="choosing"&&<p className="workspace-status">Choose a project or Unassigned in the Microsoft Workspace window, then continue the send.</p>}
+                {workspaceTransferStatus==="received"&&<p className="workspace-status">Quote delivered to the selected destination. Save it in the Microsoft Workspace tab.</p>}
                 {workspaceTransferStatus==="saved"&&<p className="workspace-status">✓ Quote saved to Compass Workspace.</p>}
                 {workspaceTransferStatus==="downloaded"&&<p className="workspace-status">Import file downloaded. Open Microsoft Workspace → Quotes → Import quote file.</p>}
                 {workspaceTransferError&&<p className="pipeline-err" role="alert">{workspaceTransferError}</p>}
