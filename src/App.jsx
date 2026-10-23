@@ -321,8 +321,9 @@ async function makeExcelQuote({ siteInfo, supplier, result, currency = "GBP", as
   sheet.getColumn(6).width = 10;
   sheet.getColumn(7).width = 14;
   sheet.getColumn(8).width = 17;
-  sheet.getColumn(6).hidden = true;
-  sheet.getColumn(7).hidden = true;
+  // Show quantity (F) and unit price (G) in exported quotes so they can be reviewed and edited.
+  sheet.getColumn(6).hidden = false;
+  sheet.getColumn(7).hidden = false;
 
   sheet.mergeCells("A1:H1");
   sheet.getCell("A1").value = "Omni-Channel Digital Cost Summary";
