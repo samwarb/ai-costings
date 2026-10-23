@@ -1136,7 +1136,7 @@ export default function App() {
       const transfer=transferRef.current;
       if(DEBUG_WORKSPACE_HANDOFF&&event.data?.type?.startsWith?.("COMPASS_QUOTE_"))console.info("[Compass handoff] reply",JSON.stringify({type:event.data.type,origin:event.origin,originAllowed:WORKSPACE_FRAME_ORIGIN.test(event.origin),nonceMatches:Boolean(transfer&&event.data?.nonce===transfer.nonce),transferActive:Boolean(transfer),sourceIsWorkspacePopup:Boolean(transfer&&isWorkspacePopupFrame(transfer.window,event.source))}));
       if(!transfer||!WORKSPACE_FRAME_ORIGIN.test(event.origin)||!event.source||event.data?.nonce!==transfer.nonce)return;
-      if(event.data.type==="COMPASS_QUOTE_READY" && !transfer.started){
+      if(["COMPASS_QUOTE_READY","COMPASS_QUOTE_DESTINATION"].includes(event.data.type) && !transfer.started){
         const projectId=typeof event.data.projectId==="string"?event.data.projectId:"";
         const projectName=event.data.projectName||"";
         if(typeof projectId!=="string" || (projectId && !/^[a-zA-Z0-9_-]{1,80}$/.test(projectId)))return;
