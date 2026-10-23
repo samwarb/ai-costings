@@ -18,6 +18,17 @@ function pingWorkspaceFrames(popup,message){
   }
   if(DEBUG_WORKSPACE_HANDOFF)console.info("[Compass handoff] hello sent",{windows:seen.size,posted,frameCounts});
 }
+function isWorkspacePopupFrame(popup,source){
+  const queue=[popup],seen=new Set();
+  while(queue.length&&seen.size<100){
+    const candidate=queue.shift();
+    if(!candidate||seen.has(candidate))continue;
+    if(candidate===source)return true;
+    seen.add(candidate);
+    try{for(let i=0;i<candidate.frames.length;i++)queue.push(candidate.frames[i]);}catch{}
+  }
+  return false;
+}
 function clearWorkspaceTransferTimers(transfer){
   if(transfer?.helloTimer)clearInterval(transfer.helloTimer);
   if(transfer?.timeoutTimer)clearTimeout(transfer.timeoutTimer);
@@ -1123,7 +1134,7 @@ export default function App() {
   useEffect(()=>{
     const onMessage=(event)=>{
       const transfer=transferRef.current;
-      if(DEBUG_WORKSPACE_HANDOFF&&event.data?.type?.startsWith?.("COMPASS_QUOTE_"))console.info("[Compass handoff] reply",{type:event.data.type,origin:event.origin,originAllowed:WORKSPACE_FRAME_ORIGIN.test(event.origin),nonceMatches:Boolean(transfer&&event.data?.nonce===transfer.nonce),transferActive:Boolean(transfer)});
+      if(DEBUG_WORKSPACE_HANDOFF&&event.data?.type?.startsWith?.("COMPASS_QUOTE_"))console.info("[Compass handoff] reply",JSON.stringify({type:event.data.type,origin:event.origin,originAllowed:WORKSPACE_FRAME_ORIGIN.test(event.origin),nonceMatches:Boolean(transfer&&event.data?.nonce===transfer.nonce),transferActive:Boolean(transfer),sourceIsWorkspacePopup:Boolean(transfer&&isWorkspacePopupFrame(transfer.window,event.source))}));
       if(!transfer||!WORKSPACE_FRAME_ORIGIN.test(event.origin)||!event.source||event.data?.nonce!==transfer.nonce)return;
       if(event.data.type==="COMPASS_QUOTE_READY" && !transfer.started){
         const projectId=typeof event.data.projectId==="string"?event.data.projectId:"";
