@@ -6,15 +6,17 @@ import { workspaceQuoteSiteName } from "./workspace-quote-utils";
 
 const WORKSPACE_URL="https://play.managedapps.cloud.microsoft/apps/b83dac27-95ea-4a84-937f-fb486eadd99b";
 const WORKSPACE_FRAME_ORIGIN=/^https:\/\/apps-b83dac2795ea4a84937ffb486eadd99b\.pp\.[a-z0-9-]+\.gateway\.prod\.island\.powerplatformusercontent\.com$/;
+const DEBUG_WORKSPACE_HANDOFF=new URLSearchParams(window.location.search).get("handoffTest")==="1";
 function pingWorkspaceFrames(popup,message){
-  const queue=[popup],seen=new Set();
+  const queue=[popup],seen=new Set();let posted=0,frameCounts=[];
   while(queue.length&&seen.size<100){
     const candidate=queue.shift();
     if(!candidate||seen.has(candidate))continue;
     seen.add(candidate);
-    try{candidate.postMessage(message,"*");}catch{}
-    try{for(let i=0;i<candidate.frames.length;i++)queue.push(candidate.frames[i]);}catch{}
+    try{candidate.postMessage(message,"*");posted++;}catch{}
+    try{const count=candidate.frames.length;frameCounts.push(count);for(let i=0;i<count;i++)queue.push(candidate.frames[i]);}catch{frameCounts.push("blocked");}
   }
+  if(DEBUG_WORKSPACE_HANDOFF)console.info("[Compass handoff] hello sent",{windows:seen.size,posted,frameCounts});
 }
 function clearWorkspaceTransferTimers(transfer){
   if(transfer?.helloTimer)clearInterval(transfer.helloTimer);
@@ -1121,6 +1123,7 @@ export default function App() {
   useEffect(()=>{
     const onMessage=(event)=>{
       const transfer=transferRef.current;
+      if(DEBUG_WORKSPACE_HANDOFF&&event.data?.type?.startsWith?.("COMPASS_QUOTE_"))console.info("[Compass handoff] reply",{type:event.data.type,origin:event.origin,originAllowed:WORKSPACE_FRAME_ORIGIN.test(event.origin),nonceMatches:Boolean(transfer&&event.data?.nonce===transfer.nonce),transferActive:Boolean(transfer)});
       if(!transfer||!WORKSPACE_FRAME_ORIGIN.test(event.origin)||!event.source||event.data?.nonce!==transfer.nonce)return;
       if(event.data.type==="COMPASS_QUOTE_READY" && !transfer.started){
         const projectId=typeof event.data.projectId==="string"?event.data.projectId:"";
@@ -1253,8 +1256,8 @@ export default function App() {
       clearWorkspaceTransferTimers(transfer);
       transferRef.current=null;
       setWorkspaceTransferStatus("error");
-      setWorkspaceTransferError("Workspace did not connect to the quote handoff. Try again; if the browser still blocks it, use the import file below.");
-    },30000);
+      setWorkspaceTransferError("Workspace did not complete the handoff within two minutes. Choose the destination and continue in Workspace, then try again if needed.");
+      },120000);
     setWorkspaceTransferStatus("waiting");
     setWorkspaceTransferError("");
   };
@@ -1806,7 +1809,7 @@ export default function App() {
                     Download import file
                   </button>
                 </div>
-                {workspaceTransferStatus==="waiting"&&<p className="workspace-status">Workspace opened. Connecting to its quote picker…</p>}
+                {workspaceTransferStatus==="waiting"&&<p className="workspace-status">Workspace opened. Choose a destination and continue there; this page will prepare the quote.</p>}
                 {workspaceTransferStatus==="preparing"&&<p className="workspace-status">Connected. Preparing the quote and its documents…</p>}
                 {workspaceTransferStatus==="received"&&<p className="workspace-status">Quote received in Workspace. Choose the project and save it to SharePoint.</p>}
                 {workspaceTransferStatus==="saved"&&<p className="workspace-status">✓ Quote saved to Compass Workspace.</p>}
